@@ -58,6 +58,32 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS clarification jsonb NOT NULL DEFAULT '
             await cursor.execute("SELECT * FROM runs WHERE id = %s", (runId,))
             return await cursor.fetchone()
 
+    async def daily(self, days: int) -> dict[str, Any]:
+        """Runs and spend per day for the last few days, every day present even when empty."""
+        async with self.pool.connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
+            await cursor.execute(
+                """
+                SELECT to_char(day, 'YYYY-MM-DD') AS day,
+                       count(runs.id) FILTER (WHERE status = 'completed') AS completed,
+                       count(runs.id) FILTER (WHERE status = 'rejected') AS rejected,
+                       count(runs.id) FILTER (WHERE status = 'failed') AS failed,
+                       count(runs.id) FILTER (WHERE status NOT IN ('completed', 'rejected', 'failed')) AS open,
+                       coalesce(sum((runs.cost->>'usd')::float), 0) AS usd
+                FROM generate_series(date_trunc('day', now()) - (%(days)s - 1) * interval '1 day', date_trunc('day', now()), interval '1 day') AS day
+                LEFT JOIN runs ON date_trunc('day', runs.created) = day
+                GROUP BY day ORDER BY day
+                """,
+                {"days": days},
+            )
+            perDay = await cursor.fetchall()
+            await cursor.execute(
+                "SELECT percentile_cont(0.5) WITHIN GROUP (ORDER BY extract(epoch FROM updated - created)) AS median "
+                "FROM runs WHERE status = 'completed' AND created >= now() - %(days)s * interval '1 day'",
+                {"days": days},
+            )
+            median = (await cursor.fetchone())["median"]
+        return {"perDay": perDay, "medianSeconds": median}
+
     async def list(self, status: str | None = None, limit: int = 50) -> list[dict[str, Any]]:
         async with self.pool.connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
             await cursor.execute(

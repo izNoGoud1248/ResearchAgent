@@ -19,6 +19,7 @@
   --accentText: #ffffff;
   --accentSoft: rgba(139, 108, 255, 0.16);
   --running: #22d3ee;
+  --chartSeries: #9085e9;
   --runningSoft: rgba(34, 211, 238, 0.12);
   --success: #34d399;
   --doneSoft: rgba(52, 211, 153, 0.12);
@@ -56,6 +57,7 @@
     --borderStrong: rgba(60, 72, 140, 0.28);
     --accent: #6a4cf5;
     --running: #0891b2;
+    --chartSeries: #6250d6;
     --runningSoft: rgba(8, 145, 178, 0.1);
     --success: #059669;
     --doneSoft: rgba(5, 150, 105, 0.1);
@@ -1322,6 +1324,132 @@ button:disabled {
   background: rgba(4, 5, 11, 0.85);
   color: #f4f6fb;
   font: 500 12px Inter, system-ui, sans-serif;
+}
+
+/* Charts on the Ops and Security pages */
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.chartTitle {
+  margin: 0 0 0.6rem;
+  font-size: 0.95rem;
+}
+
+.chart {
+  position: relative;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.chartLegend strong {
+  color: var(--text);
+}
+
+.legendSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: 0.35rem;
+  border-radius: 3px;
+  vertical-align: -1px;
+}
+
+.chartFrame {
+  position: relative;
+}
+
+.chartFrame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.gridLine {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: var(--faint);
+  font-size: 11px;
+  font-family: var(--fontMono);
+}
+
+.chartTooltip {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--borderStrong);
+  border-radius: 8px;
+  background: var(--surfaceStrong);
+  box-shadow: var(--shadow);
+  color: var(--text);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.rankedBars {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rankedBars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(60px, 1fr) 3.5ch;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.82rem;
+}
+
+.rankedLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rankedTrack {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--surfaceStrong);
+}
+
+.rankedFill {
+  display: block;
+  height: 100%;
+  border-radius: 4px;
+}
+
+.rankedValue {
+  text-align: right;
+  font-family: var(--fontMono);
+  color: var(--muted);
+}
+
+.tableCard table {
+  margin-top: 0.25rem;
 }
 
 .clusterRow {

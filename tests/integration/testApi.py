@@ -32,6 +32,17 @@ class TestApi:
             job = await harness.queue.pop()
             assert job.payload["runId"] == runId and job.payload["kind"] == "start"
 
+    async def testMetricsCoverEveryDayAndCountNewRuns(self, harness: ApiHarness):
+        async with harness.client() as client:
+            assert (await client.get("/metrics")).status_code == 401
+            before = (await client.get("/metrics?days=3", headers=harness.userHeaders)).json()
+            await client.post("/runs", json={"question": "How do LLM agents use tools?"}, headers=harness.userHeaders)
+            after = (await client.get("/metrics?days=3", headers=harness.userHeaders)).json()
+        assert after["days"] == 3
+        assert len(after["runs"]["perDay"]) == 3 and len(after["gateway"]["perDay"]) == 3
+        assert after["runs"]["perDay"][-1]["open"] == before["runs"]["perDay"][-1]["open"] + 1
+        assert set(after["links"]) == {"jaeger", "kibana", "langfuse"}
+
     async def testInputGuardBlocksInjection(self, harness: ApiHarness):
         async with harness.client() as client:
             response = await client.post(

@@ -62,6 +62,49 @@ CREATE INDEX IF NOT EXISTS auditRunIndex ON audit (run);
             )
             return await cursor.fetchall()
 
+    async def summary(self, days: int) -> dict[str, Any]:
+        """Gateway decisions per day, refusal reasons, PII redactions and latency per tool for the last few days."""
+        window = {"days": days}
+        async with self.pool.connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
+            await cursor.execute(
+                """
+                SELECT to_char(day, 'YYYY-MM-DD') AS day,
+                       count(audit.id) FILTER (WHERE outcome = 'allowed') AS allowed,
+                       count(audit.id) FILTER (WHERE outcome = 'denied') AS denied,
+                       count(audit.id) FILTER (WHERE outcome = 'failed') AS failed
+                FROM generate_series(date_trunc('day', now()) - (%(days)s - 1) * interval '1 day', date_trunc('day', now()), interval '1 day') AS day
+                LEFT JOIN audit ON date_trunc('day', audit.at) = day
+                GROUP BY day ORDER BY day
+                """,
+                window,
+            )
+            perDay = await cursor.fetchall()
+            await cursor.execute(
+                "SELECT reason, count(*) AS count FROM audit WHERE outcome = 'denied' AND at >= now() - %(days)s * interval '1 day' "
+                "GROUP BY reason ORDER BY count DESC LIMIT 6",
+                window,
+            )
+            refusals = await cursor.fetchall()
+            await cursor.execute(
+                "SELECT coalesce(sum(value::int), 0) AS redactions, count(DISTINCT audit.id) AS calls "
+                "FROM audit, jsonb_each_text(pii) WHERE at >= now() - %(days)s * interval '1 day'",
+                window,
+            )
+            pii = await cursor.fetchone()
+            await cursor.execute(
+                """
+                SELECT tool, count(*) AS calls,
+                       percentile_cont(0.5) WITHIN GROUP (ORDER BY ms) AS p50,
+                       percentile_cont(0.95) WITHIN GROUP (ORDER BY ms) AS p95,
+                       count(*) FILTER (WHERE outcome = 'failed') AS failed
+                FROM audit WHERE outcome <> 'denied' AND at >= now() - %(days)s * interval '1 day'
+                GROUP BY tool ORDER BY calls DESC
+                """,
+                window,
+            )
+            tools = await cursor.fetchall()
+        return {"perDay": perDay, "refusals": refusals, "pii": pii, "tools": tools}
+
     async def forRun(self, run: str) -> list[dict[str, Any]]:
         async with self.pool.connection() as connection, connection.cursor(row_factory=dict_row) as cursor:
             await cursor.execute(

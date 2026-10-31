@@ -3,6 +3,7 @@ import type {
   AuditRow,
   FollowUpAnswer,
   KnowledgeGraphData,
+  Metrics,
   OpsStatus,
   ReviewAction,
   Role,
@@ -66,6 +67,10 @@ export class ApiClient {
 
   askFollowUp(runId: string, question: string): Promise<FollowUpAnswer> {
     return this.request(`/runs/${encodeURIComponent(runId)}/ask`, { method: "POST", body: JSON.stringify({ question }) });
+  }
+
+  metrics(days = 7): Promise<Metrics> {
+    return this.request(`/metrics?days=${days}`);
   }
 
   knowledgeGraph(): Promise<KnowledgeGraphData> {

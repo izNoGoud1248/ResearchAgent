@@ -1,6 +1,20 @@
 import type { CostTotal } from "./api/types";
 
 export class Formatter {
+  static usd(value: number): string {
+    if (value === 0) return "$0";
+    return value >= 1 ? `$${value.toFixed(2)}` : `$${value.toFixed(value >= 0.1 ? 2 : 3)}`;
+  }
+
+  static milliseconds(value: number): string {
+    return value >= 1000 ? `${(value / 1000).toFixed(1)} s` : `${Math.round(value)} ms`;
+  }
+
+  /** Kibana dashboards loaded by observability/kibanaSetup.py, by their saved-object ids. */
+  static kibanaDashboard(kibana: string, id: "researchdesk-operations" | "researchdesk-security"): string {
+    return `${kibana}/app/dashboards#/view/${id}?_g=(time:(from:now-7d,to:now))`;
+  }
+
   /** Skill folder names are camelCase, such as comparisonReport; shown as "Comparison report". */
   static skillName(name: string): string {
     const words = name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();

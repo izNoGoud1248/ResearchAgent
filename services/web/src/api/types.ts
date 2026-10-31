@@ -52,6 +52,42 @@ export interface Run extends RunSummary {
   revisionsLeft: number;
 }
 
+export interface RunDay {
+  day: string;
+  completed: number;
+  rejected: number;
+  failed: number;
+  open: number;
+  usd: number;
+}
+
+export interface GatewayDay {
+  day: string;
+  allowed: number;
+  denied: number;
+  failed: number;
+}
+
+export interface ToolStats {
+  tool: string;
+  calls: number;
+  p50: number;
+  p95: number;
+  failed: number;
+}
+
+export interface Metrics {
+  days: number;
+  links: ToolLinks;
+  runs: { perDay: RunDay[]; medianSeconds: number | null };
+  gateway: {
+    perDay: GatewayDay[];
+    refusals: { reason: string; count: number }[];
+    pii: { redactions: number; calls: number };
+    tools: ToolStats[];
+  };
+}
+
 export type KnowledgeNodeType = "report" | "paper" | "topic" | "note";
 
 export interface KnowledgeNode {

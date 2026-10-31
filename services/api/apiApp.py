@@ -91,6 +91,7 @@ class ApiApp:
         self.app.add_api_route("/session", self.signOut, methods=["DELETE"], status_code=204)
         self.app.add_api_route("/ops/status", self.opsStatus, methods=["GET"])
         self.app.add_api_route("/audit", self.auditFeed, methods=["GET"])
+        self.app.add_api_route("/metrics", self.metrics, methods=["GET"])
         self.app.add_api_route("/runs", self.ask, methods=["POST"], status_code=202)
         self.app.add_api_route("/runs", self.listRuns, methods=["GET"])
         self.app.add_api_route("/runs/{runId}", self.getRun, methods=["GET"])
@@ -144,6 +145,12 @@ class ApiApp:
             "caches": {name: await cache.stats() for name, cache in self.caches.items()},
             "links": self.links,
         }
+
+    async def metrics(self, request: Request, days: int = 7) -> dict[str, Any]:
+        """Trends for the Ops and Security pages, from Postgres, so they work without the logging stack."""
+        self.auth.require(request, "user")
+        days = max(1, min(days, 90))
+        return {"days": days, "runs": await self.runs.daily(days), "gateway": await self.audit.summary(days), "links": self.links}
 
     async def auditFeed(self, request: Request, outcome: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
         self.auth.require(request, "user")

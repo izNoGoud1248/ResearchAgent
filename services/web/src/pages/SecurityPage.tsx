@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import type { ApiClient } from "../api/apiClient";
-import type { AuditOutcome, AuditRow } from "../api/types";
+import type { AuditOutcome, AuditRow, Metrics } from "../api/types";
+import { RankedBars, StackedDays } from "../components/MetricsCharts";
 import { Formatter } from "../formatter";
 import { HashRouter } from "../routing";
+import { statusColors } from "./OpsPage";
 
 const filters: { value: AuditOutcome | undefined; label: string }[] = [
   { value: undefined, label: "All" },
@@ -14,6 +16,11 @@ const filters: { value: AuditOutcome | undefined; label: string }[] = [
 export function SecurityPage({ client }: { client: ApiClient }) {
   const [outcome, setOutcome] = useState<AuditOutcome | undefined>("denied");
   const [rows, setRows] = useState<AuditRow[] | null>(null);
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+
+  useEffect(() => {
+    client.metrics().then(setMetrics).catch(() => setMetrics(null));
+  }, [client]);
 
   useEffect(() => {
     setRows(null);
@@ -27,6 +34,8 @@ export function SecurityPage({ client }: { client: ApiClient }) {
       <p className="muted">
         Every tool call through the MCP gateway: who called, what was decided and why, and how much PII was redacted.
       </p>
+      {metrics && <GatewayTrends metrics={metrics} />}
+      <h2>Audit log</h2>
       <div className="segmented" role="tablist">
         {filters.map((filter) => (
           <button
@@ -89,8 +98,57 @@ export function SecurityPage({ client }: { client: ApiClient }) {
           </table>
         </div>
       )}
-      <h2>Compliance report</h2>
-      <p className="muted">The compliance report built from the audit log arrives in Stage 7.</p>
     </section>
+  );
+}
+
+function GatewayTrends({ metrics }: { metrics: Metrics }) {
+  const days = metrics.gateway.perDay;
+  const total = (key: "allowed" | "denied" | "failed") => days.reduce((sum, day) => sum + day[key], 0);
+  const calls = total("allowed") + total("denied") + total("failed");
+
+  return (
+    <>
+      <h2>Last {metrics.days} days</h2>
+      <div className="tiles">
+        <div className="card tile">
+          <span className="tileLabel">Tool calls</span>
+          <span className="tileValue">{calls}</span>
+          <span className="muted">through the MCP gateway</span>
+        </div>
+        <div className="card tile">
+          <span className="tileLabel">Denied</span>
+          <span className="tileValue">{total("denied")}</span>
+          <span className="muted">{calls > 0 ? `${Formatter.percent(total("denied") / calls)} of calls` : "no calls"}</span>
+        </div>
+        <div className="card tile">
+          <span className="tileLabel">PII redacted</span>
+          <span className="tileValue">{metrics.gateway.pii.redactions}</span>
+          <span className="muted">items in {metrics.gateway.pii.calls} calls</span>
+        </div>
+      </div>
+      <div className="chartGrid">
+        <div className="card">
+          <h3 className="chartTitle">Gateway decisions per day</h3>
+          <StackedDays
+            rows={days}
+            series={[
+              { key: "allowed", label: "Allowed", color: statusColors.good },
+              { key: "denied", label: "Denied", color: statusColors.warning },
+              { key: "failed", label: "Failed", color: statusColors.critical },
+            ]}
+          />
+        </div>
+        <div className="card">
+          <h3 className="chartTitle">Top reasons for denial</h3>
+          <RankedBars items={metrics.gateway.refusals.map((item) => ({ label: item.reason, value: item.count }))} color="var(--chartSeries)" />
+        </div>
+      </div>
+      <p className="traceLinks">
+        <a href={Formatter.kibanaDashboard(metrics.links.kibana, "researchdesk-security")} target="_blank" rel="noreferrer noopener">
+          Security dashboard in Kibana
+        </a>
+      </p>
+    </>
   );
 }
