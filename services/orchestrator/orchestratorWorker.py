@@ -92,7 +92,14 @@ class OrchestratorWorker:
     async def finish(self, runId: str, result: dict[str, Any]) -> None:
         cost = await self.costs.runTotal(runId)
         rounds = result.get("reviewRounds", 0)
-        if result.get("__interrupt__"):
+        pause = result["__interrupt__"][0].value if result.get("__interrupt__") else None
+        if pause and pause.get("kind") == "clarification":
+            question = {"question": pause["question"], "options": pause.get("options", [])}
+            await self.runs.update(runId, status="awaitingClarification", clarification=question, cost=cost)
+            await self.events.publish(runId, "awaitingClarification", **question)
+            self.log.info("run awaiting clarification", runId=runId, usd=cost["usd"])
+            return
+        if pause:
             await self.runs.update(
                 runId, status="awaitingApproval", report=result["draft"], review=result.get("reviewNote", ""),
                 revisions=rounds, cost=cost,

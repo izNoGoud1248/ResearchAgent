@@ -23,9 +23,11 @@ CREATE TABLE IF NOT EXISTS runs (
 CREATE INDEX IF NOT EXISTS runsStatusIndex ON runs (status, created DESC);
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS trace text NOT NULL DEFAULT '';
 ALTER TABLE runs ADD COLUMN IF NOT EXISTS revisions integer NOT NULL DEFAULT 0;
+ALTER TABLE runs ADD COLUMN IF NOT EXISTS clarification jsonb NOT NULL DEFAULT '{}';
 """
-    columns = ("status", "sensitive", "report", "note", "review", "cost", "error", "revisions")
-    statuses = ("queued", "running", "awaitingApproval", "resuming", "completed", "rejected", "failed")
+    columns = ("status", "sensitive", "report", "note", "review", "cost", "error", "revisions", "clarification")
+    jsonColumns = ("cost", "clarification")
+    statuses = ("queued", "running", "awaitingClarification", "awaitingApproval", "resuming", "completed", "rejected", "failed")
 
     def __init__(self, pool: AsyncConnectionPool):
         self.pool = pool
@@ -46,7 +48,7 @@ ALTER TABLE runs ADD COLUMN IF NOT EXISTS revisions integer NOT NULL DEFAULT 0;
         unknown = set(fields) - set(self.columns)
         if unknown:
             raise ValueError(f"unknown run fields {sorted(unknown)}")
-        values = {name: Jsonb(value) if name == "cost" else value for name, value in fields.items()}
+        values = {name: Jsonb(value) if name in self.jsonColumns else value for name, value in fields.items()}
         assignments = ", ".join(f"{name} = %({name})s" for name in values)
         async with self.pool.connection() as connection:
             await connection.execute(f"UPDATE runs SET {assignments}, updated = now() WHERE id = %(runId)s", values | {"runId": runId})

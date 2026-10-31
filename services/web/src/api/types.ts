@@ -1,6 +1,6 @@
 export type Role = "user" | "approver";
 
-export type RunStatus = "queued" | "running" | "awaitingApproval" | "resuming" | "completed" | "rejected" | "failed";
+export type RunStatus = "queued" | "running" | "awaitingClarification" | "awaitingApproval" | "resuming" | "completed" | "rejected" | "failed";
 
 export interface CostTotal {
   inputTokens?: number;
@@ -39,8 +39,14 @@ export interface FollowUpAnswer {
   ungroundedCitations?: string[];
 }
 
+export interface ClarifyingQuestion {
+  question?: string;
+  options?: string[];
+}
+
 export interface Run extends RunSummary {
   report: string;
+  clarification: ClarifyingQuestion;
   review: string;
   traceId: string;
   revisionsLeft: number;

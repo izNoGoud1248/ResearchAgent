@@ -15,6 +15,7 @@ from libs.tools.a2aClient import A2aClient
 from libs.tools.gatewayClient import GatewayClient
 from services.orchestrator.agents.agentResearcher import AgentResearcher
 from services.orchestrator.agents.critic import Critic
+from services.orchestrator.agents.clarifier import Clarifier
 from services.orchestrator.agents.factCheckStep import FactCheckStep
 from services.orchestrator.agents.noteSaver import NoteSaver
 from services.orchestrator.agents.planner import Planner
@@ -54,6 +55,7 @@ class OrchestratorFactory:
         factChecker = A2aClient(factCheckerUrl or settings.factCheckerUrl, issuer, audience="factChecker")
 
         graph = ResearchGraph(
+            clarifier=Clarifier(llm, tools),
             planner=Planner(llm),
             researcher=ResearcherSwitch(Researcher(llm, tools, events), AgentResearcher(llm, tools, events)),
             factCheck=FactCheckStep(factChecker, events),

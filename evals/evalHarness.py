@@ -48,6 +48,9 @@ class RunDriver:
             if run["status"] == "awaitingApproval":
                 # The harness measures research quality, so held reports are approved as they are.
                 await self.client.post(f"/runs/{runId}/decision", json={"action": "approve", "note": "evaluation"}, headers=self.approverHeaders)
+            if run["status"] == "awaitingClarification":
+                # The eval questions are meant to be clear; if one is queried anyway, the run proceeds on its best reading.
+                await self.client.post(f"/runs/{runId}/clarify", json={"answer": "use your best judgement"}, headers=self.userHeaders)
             await asyncio.sleep(3)
         raise TimeoutError(f"run {runId} did not finish within {timeoutSeconds}s")
 

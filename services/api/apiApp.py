@@ -39,6 +39,10 @@ class DecisionRequest(BaseModel):
     note: str = Field("", max_length=2000)
 
 
+class ClarifyRequest(BaseModel):
+    answer: str = Field(max_length=500)
+
+
 class SignInRequest(BaseModel):
     apiKey: str = Field(max_length=200)
 
@@ -89,6 +93,7 @@ class ApiApp:
         self.app.add_api_route("/runs/{runId}", self.getRun, methods=["GET"])
         self.app.add_api_route("/runs/{runId}/events", self.streamEvents, methods=["GET"])
         self.app.add_api_route("/runs/{runId}/decision", self.decide, methods=["POST"], status_code=202)
+        self.app.add_api_route("/runs/{runId}/clarify", self.clarify, methods=["POST"], status_code=202)
         self.app.add_api_route("/runs/{runId}/ask", self.askFollowUp, methods=["POST"])
 
     async def askFollowUp(self, runId: str, body: FollowUpRequest, request: Request) -> Any:
@@ -203,6 +208,22 @@ class ApiApp:
         await self.queue.push(job, "high")
         with Tracer.span("run.decision", carrier=job["traceContext"], runId=runId, action=body.action):
             self.log.info("approval decision", runId=runId, action=body.action)
+        return {"runId": runId, "status": "resuming"}
+
+    async def clarify(self, runId: str, body: ClarifyRequest, request: Request) -> dict[str, str]:
+        self.auth.require(request, "user")
+        verdict = self.guard.checkMessage(body.answer)
+        if not verdict.allowed:
+            raise HTTPException(status_code=400, detail=verdict.reason)
+        run = await self.existingRun(runId)
+        if run["status"] != "awaitingClarification":
+            raise HTTPException(status_code=409, detail=f"run is {run['status']}, not waiting for an answer")
+        await self.runs.update(runId, status="resuming")
+        answer = {"answer": self.guard.normalize(body.answer).strip()}
+        job = {"kind": "resume", "runId": runId, "decision": answer, "traceContext": {"traceparent": run["trace"]}}
+        await self.queue.push(job, "high")
+        with Tracer.span("run.clarify", carrier=job["traceContext"], runId=runId):
+            self.log.info("clarification answered", runId=runId)
         return {"runId": runId, "status": "resuming"}
 
     async def streamEvents(self, runId: str, request: Request) -> EventSourceResponse:

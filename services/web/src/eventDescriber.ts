@@ -7,7 +7,7 @@ export class EventDescriber {
     const node = EventDescriber.text(data["node"]);
     switch (event.kind) {
       case "runStarted":
-        return data["job"] === "resume" ? "Run resumed after the approval decision" : "Run picked up by a worker";
+        return data["job"] === "resume" ? "Run resumed after your input" : "Run picked up by a worker";
       case "nodeStarted":
         return `${node} started`;
       case "nodeFinished":
@@ -18,6 +18,8 @@ export class EventDescriber {
         }`;
       case "a2aCall":
         return `Sent ${EventDescriber.text(data["claims"])} claims to the Fact-Checker over A2A`;
+      case "awaitingClarification":
+        return `Asked you: ${EventDescriber.text(data["question"])}`;
       case "awaitingApproval":
         if (typeof data["revision"] === "number" && data["revision"] > 0) {
           return `Revised draft ${data["revision"]} ready for review`;

@@ -1,6 +1,7 @@
 import type { RunEvent } from "./api/types";
 
 export const agentNodes = [
+  "clarify",
   "planner",
   "researcher",
   "factCheck",
@@ -20,6 +21,7 @@ export class RunProgress {
   readonly finished = new Map<AgentNode, number>();
   criticScores: number[] = [];
   awaitingApproval = false;
+  awaitingClarification = false;
   outcome: "completed" | "rejected" | "failed" | null = null;
 
   static from(events: readonly RunEvent[]): RunProgress {
@@ -37,6 +39,7 @@ export class RunProgress {
     if (event.kind === "nodeStarted" && RunProgress.isNode(node)) {
       this.active.set(node, (this.active.get(node) ?? 0) + 1);
       if (node === "approval") this.awaitingApproval = false;
+      if (node === "planner") this.awaitingClarification = false;
     } else if (event.kind === "nodeFinished" && RunProgress.isNode(node)) {
       this.active.set(node, Math.max(0, (this.active.get(node) ?? 0) - 1));
       this.finished.set(node, (this.finished.get(node) ?? 0) + 1);
@@ -46,6 +49,8 @@ export class RunProgress {
       this.awaitingApproval = true;
       // The approval node was interrupted, so it never reports finishing; it is paused instead.
       this.active.set("approval", 0);
+    } else if (event.kind === "awaitingClarification") {
+      this.awaitingClarification = true;
     } else if (event.kind === "runFinished") {
       this.outcome = event.data["status"] === "rejected" ? "rejected" : "completed";
     } else if (event.kind === "runFailed") {
@@ -56,6 +61,7 @@ export class RunProgress {
   stateOf(node: AgentNode): NodeState {
     if ((this.active.get(node) ?? 0) > 0) return "running";
     if (node === "approval" && this.awaitingApproval) return "paused";
+    if (node === "clarify" && this.awaitingClarification) return "paused";
     if ((this.finished.get(node) ?? 0) > 0) return "done";
     // A finished run that never reached a step took another branch, such as no approval for a non-sensitive brief.
     return this.outcome === "completed" || this.outcome === "rejected" ? "skipped" : "waiting";

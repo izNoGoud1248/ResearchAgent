@@ -6,6 +6,10 @@ roles:
     issuer: orchestrator
     # Researchers add every paper they find to the library; the agent researcher can also search it and read full text.
     tools: [arxiv.search, arxiv.fetch, library.add, library.search, paper.read]
+  clarifier:
+    issuer: orchestrator
+    # Looks up unfamiliar terms in a question before research starts.
+    tools: [arxiv.search]
   writer:
     issuer: orchestrator
     tools: [notes.save, notes.read]

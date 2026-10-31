@@ -644,6 +644,7 @@ button:disabled {
   color: var(--success);
 }
 
+.status-awaitingClarification,
 .status-awaitingApproval,
 .status-resuming {
   background: var(--pausedSoft);
@@ -840,6 +841,13 @@ button:disabled {
   stroke-dasharray: 4 4;
 }
 
+.clarifyOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
 .approvalBanner {
   margin-bottom: 1.25rem;
   border-color: color-mix(in srgb, var(--warning) 45%, transparent);
@@ -919,11 +927,13 @@ button:disabled {
   color: var(--running);
 }
 
+.kind-awaitingClarification::before,
 .kind-awaitingApproval::before {
   background: var(--warning);
   box-shadow: 0 0 8px var(--warning);
 }
 
+.kind-awaitingClarification span,
 .kind-awaitingApproval span {
   color: var(--warning);
   font-weight: 600;

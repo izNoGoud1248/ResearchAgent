@@ -20,7 +20,7 @@ class Planner:
     async def run(self, state: ResearchState) -> dict[str, Any]:
         reply = await self.llm.complete(
             "planner",
-            [{"role": "system", "content": self.instructions}, {"role": "user", "content": state["question"]}],
+            [{"role": "system", "content": self.instructions}, {"role": "user", "content": self.request(state)}],
             runId=state["runId"],
             jsonMode=True,
         )
@@ -31,3 +31,13 @@ class Planner:
         ][: self.maxParts]
         # A plan the model failed to produce still lets the run continue with the original question.
         return {"plan": plan or [{"question": state["question"], "searchQuery": state["question"][:120]}]}
+
+    @staticmethod
+    def request(state: ResearchState) -> str:
+        # What the clarifier settled about the question shapes the plan.
+        parts = [state["question"]]
+        if state.get("clarification"):
+            parts.append(f"The user clarified: {state['clarification']}")
+        if state.get("assumption"):
+            parts.append(f"Working assumption: {state['assumption']}")
+        return "\n".join(parts)

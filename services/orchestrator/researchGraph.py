@@ -10,6 +10,7 @@ from langgraph.types import Send
 from libs.guardrails.approvalGate import ApprovalGate
 from libs.runEvents import RunEvents
 from libs.telemetry.tracer import Tracer
+from services.orchestrator.agents.clarifier import Clarifier, ClarifyingQuestion
 from services.orchestrator.agents.critic import Critic
 from services.orchestrator.agents.factCheckStep import FactCheckStep
 from services.orchestrator.agents.noteSaver import NoteSaver
@@ -23,13 +24,14 @@ NodeAction = Callable[[Any], Awaitable[dict[str, Any]]]
 
 
 class ResearchGraph:
-    """Planner -> researchers in parallel -> fact-check (A2A) -> writer <-> critic -> sensitivity -> approval -> save.
+    """Clarifier (may ask the user) -> planner -> researchers in parallel -> fact-check (A2A) -> writer <-> critic -> sensitivity -> approval -> save.
 
     At approval a reviewer can also send the draft back to the writer with notes.
     """
 
     def __init__(
         self,
+        clarifier: Clarifier,
         planner: Planner,
         researcher: ResearcherSwitch,
         factCheck: FactCheckStep,
@@ -41,10 +43,13 @@ class ResearchGraph:
         events: RunEvents,
     ):
         self.events = events
+        self.clarifier = clarifier
         self.critic = critic
         self.sensitivity = sensitivity
         self.approval = approval
         self.nodes: dict[str, NodeAction] = {
+            "clarify": clarifier.run,
+            "askUser": ClarifyingQuestion().run,
             "planner": planner.run,
             "researcher": researcher.run,
             "factCheck": factCheck.run,
@@ -59,7 +64,9 @@ class ResearchGraph:
         graph = StateGraph(ResearchState)
         for name, action in self.nodes.items():
             graph.add_node(name, self.withEvents(name, action))
-        graph.add_edge(START, "planner")
+        graph.add_edge(START, "clarify")
+        graph.add_conditional_edges("clarify", self.clarifier.nextStep, ["askUser", "planner"])
+        graph.add_edge("askUser", "planner")
         graph.add_conditional_edges("planner", self.fanOut, ["researcher"])
         graph.add_edge("researcher", "factCheck")
         graph.add_edge("factCheck", "writer")

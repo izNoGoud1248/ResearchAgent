@@ -59,6 +59,10 @@ export class ApiClient {
     });
   }
 
+  clarify(runId: string, answer: string): Promise<{ status: string }> {
+    return this.request(`/runs/${encodeURIComponent(runId)}/clarify`, { method: "POST", body: JSON.stringify({ answer }) });
+  }
+
   askFollowUp(runId: string, question: string): Promise<FollowUpAnswer> {
     return this.request(`/runs/${encodeURIComponent(runId)}/ask`, { method: "POST", body: JSON.stringify({ question }) });
   }

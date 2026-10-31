@@ -1,6 +1,7 @@
 import { type AgentNode, agentNodes, type RunProgress } from "../runProgress";
 
 const labels: Record<AgentNode, string> = {
+  clarify: "Clarifier",
   planner: "Planner",
   researcher: "Researchers",
   factCheck: "Fact-Checker",

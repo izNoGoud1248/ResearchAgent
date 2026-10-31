@@ -112,6 +112,10 @@ uv run pytest -m llm -s
 
 The first runs against real Redis (database 15, wiped before and after each test), real Postgres and the real arXiv API, at no cost. The second calls the real OpenAI API with gpt-4o-mini and prints what it cost.
 
+## Clarifying unclear questions
+
+Before planning, the Clarifier picks out terms in the question a researcher might not recognise (unusual acronyms, unfamiliar model names, likely typos) and looks each one up on arXiv. The question is then clear, researched under an assumption the brief states, or put back to the user: the run pauses as `awaitingClarification`, the live page shows the question with suggested answers, and `POST /runs/{runId}/clarify` with `{"answer": ...}` resumes it. It asks only when the possible readings would lead to different research, not to have ordinary terms defined.
+
 ## Paper library and follow-up questions
 
 Every paper the researchers find goes into a library (`services/mcpLibrary`, Postgres with pgvector). `paper.read` fetches a paper's full text from arXiv's HTML version, splits it by section and embeds it; `library.search` is hybrid search (full-text and vector, merged by reciprocal rank fusion). On a finished report, the follow-up box answers questions from the full text of the papers it cites, citing the section each statement comes from, and flags any citation that was not among the retrieved passages. Paper text passes through the gateway like any tool result, with instruction-like spans neutralized.

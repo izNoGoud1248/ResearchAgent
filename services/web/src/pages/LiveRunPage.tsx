@@ -3,6 +3,7 @@ import type { ApiClient } from "../api/apiClient";
 import { EventStream } from "../api/eventStream";
 import type { Role, Run, RunEvent, ToolLinks } from "../api/types";
 import { AgentGraph } from "../components/AgentGraph";
+import { ClarifyForm } from "../components/ClarifyForm";
 import { DecisionForm } from "../components/DecisionForm";
 import { FollowUpBox } from "../components/FollowUpBox";
 import { MarkdownView } from "../components/MarkdownView";
@@ -46,7 +47,7 @@ export function LiveRunPage({ client, runId, role }: LiveRunPageProps) {
       runId,
       (event) => {
         setEvents((previous) => (previous.some((seen) => seen.id === event.id) ? previous : [...previous, event]));
-        if (event.kind === "awaitingApproval" || EventStream.finalKinds.has(event.kind)) refresh();
+        if (event.kind === "runStarted" || event.kind === "awaitingApproval" || event.kind === "awaitingClarification" || EventStream.finalKinds.has(event.kind)) refresh();
       },
       controller.signal,
     );
@@ -104,6 +105,12 @@ export function LiveRunPage({ client, runId, role }: LiveRunPageProps) {
         <AgentGraph progress={progress} />
       </div>
 
+      {run.status === "awaitingClarification" && run.clarification.question && (
+        <div className="card approvalBanner">
+          <strong>Before researching, the Clarifier needs one answer from you.</strong>
+          <ClarifyForm client={client} runId={run.id} question={run.clarification} onAnswered={refresh} />
+        </div>
+      )}
       {run.status === "awaitingApproval" && (
         <div className="card approvalBanner">
           <strong>

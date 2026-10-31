@@ -3,6 +3,7 @@ import type { RunStatus } from "../api/types";
 const labels: Record<RunStatus, string> = {
   queued: "Queued",
   running: "Running",
+  awaitingClarification: "Needs your answer",
   awaitingApproval: "Needs approval",
   resuming: "Resuming",
   completed: "Completed",

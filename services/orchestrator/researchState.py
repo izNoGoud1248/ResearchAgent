@@ -16,6 +16,10 @@ class ResearchState(TypedDict, total=False):
     question: str
     sensitive: bool
     researcherMode: str
+    clarifyStatus: str  # clear, assume or ask, see Clarifier
+    clarifyQuestion: dict[str, Any]
+    clarification: str
+    assumption: str
     sensitiveReason: str
     plan: list[dict[str, str]]
     findings: Annotated[list[dict[str, Any]], operator.add]
