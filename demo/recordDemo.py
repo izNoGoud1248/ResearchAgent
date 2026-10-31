@@ -1,3 +1,4 @@
+import asyncio
 import shutil
 import subprocess
 import time
@@ -103,6 +104,7 @@ class DemoRecorder:
     clarification = "EAGLE, the speculative decoding method. EGALE was a typo."
 
     def __init__(self, settings: Settings, speed: float = 1.5):
+        self.settings = settings
         self.apiKey = settings.approverApiKey.get_secret_value()
         self.speed = speed
         # Stretches of the raw recording (seconds) where a page is still loading; the encoder drops them.
@@ -110,12 +112,14 @@ class DemoRecorder:
         self.started = 0.0
 
     def run(self) -> Path:
+        asyncio.run(self.clearModelCache())
         outputDirectory.mkdir(exist_ok=True)
         rawDirectory = outputDirectory / "raw"
         shutil.rmtree(rawDirectory, ignore_errors=True)
         with sync_playwright() as playwright:
-            # Software WebGL, so the 3D knowledge graph renders in a headless browser.
-            browser = playwright.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
+            # Draw with the real GPU: headless Chromium otherwise falls back to software rendering, which drops the
+            # page to a few frames per second and makes the recording stutter (measured: 9 fps in 3D, 60 with the GPU).
+            browser = playwright.chromium.launch(args=["--enable-gpu", "--use-angle=d3d11", "--ignore-gpu-blocklist"])
             context = browser.new_context(
                 viewport={"width": 1920, "height": 1080},
                 color_scheme="dark",
@@ -131,6 +135,13 @@ class DemoRecorder:
             browser.close()
             rawVideo = Path(video.path())
         return self.encode(rawVideo)
+
+    async def clearModelCache(self) -> None:
+        """Cached model replies would let the agents finish instantly; the demo should show them working."""
+        redis = self.settings.makeRedis()
+        async for key in redis.scan_iter("cache:llm*"):
+            await redis.delete(key)
+        await redis.aclose()
 
     def perform(self, page: Page, overlay: Overlay) -> None:
         self.openQuietly(page, webUrl, "Research with an")

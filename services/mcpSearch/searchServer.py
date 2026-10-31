@@ -59,7 +59,9 @@ class SearchServer:
             if len(papers) < maxResults and self.allTerms(query) != query:
                 more, cachedMore = await self.cachedSearch(query, maxResults, sortBy, sinceYear)
                 known = {paper["id"] for paper in papers}
-                papers += [paper for paper in more if paper["id"] not in known][: maxResults - len(papers)]
+                # Top-ups must still be about the query: at least half its terms in the title or abstract.
+                related = [paper for paper in more if paper["id"] not in known and self.coversHalf(query, paper)]
+                papers += related[: maxResults - len(papers)]
                 cached = cached and cachedMore
             span.set_attributes({"cached": cached, "papers": len(papers)})
         payload = {"query": query, "papers": papers}
@@ -72,6 +74,12 @@ class SearchServer:
             return query
         terms = re.findall(r"[\w-]+", query)
         return " AND ".join(f"all:{term}" for term in terms) if len(terms) > 1 else query
+
+    @staticmethod
+    def coversHalf(query: str, paper: dict[str, Any]) -> bool:
+        terms = {term.lower() for term in re.findall(r"[\w-]+", query)}
+        text = f"{paper['title']} {paper['summary']}".lower()
+        return sum(term in text for term in terms) * 2 >= len(terms)
 
     async def cachedSearch(self, query: str, maxResults: int, sortBy: str, sinceYear: int | None) -> tuple[list[dict[str, Any]], bool]:
         fullQuery = f"({query}) AND submittedDate:[{sinceYear}01010000 TO 299912312359]" if sinceYear else query
