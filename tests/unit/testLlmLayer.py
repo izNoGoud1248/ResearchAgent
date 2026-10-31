@@ -23,6 +23,13 @@ class TestCostTracker:
         with pytest.raises(KeyError):
             tracker.priceFor("unknown-model", 1, 1)
 
+    async def testLocalModelsAreFreeButStillCounted(self, redis):
+        tracker = CostTracker(redis, freeModels=frozenset({"qwen2.5:latest"}))
+        assert await tracker.record("run1", "qwen2.5:latest", 1000, 200) == 0.0
+        total = await tracker.runTotal("run1")
+        assert total["inputTokens"] == 1000
+        assert total["calls:qwen2.5:latest"] == 1
+
     async def testAddsUpPerRun(self, redis):
         tracker = CostTracker(redis)
         await tracker.record("run1", "gpt-4o-mini", 1000, 200)

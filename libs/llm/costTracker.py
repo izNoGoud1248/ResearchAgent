@@ -9,11 +9,15 @@ class CostTracker:
         "text-embedding-3-small": (0.02, 0.0),
     }
 
-    def __init__(self, redis: Redis, keepDays: int = 30):
+    def __init__(self, redis: Redis, keepDays: int = 30, freeModels: frozenset[str] = frozenset()):
         self.redis = redis
+        # Models served locally (for example by Ollama) cost nothing per token.
+        self.freeModels = freeModels
         self.keepSeconds = keepDays * 86400
 
     def priceFor(self, model: str, inputTokens: int, outputTokens: int) -> float:
+        if model in self.freeModels:
+            return 0.0
         # API replies use dated names like gpt-4o-mini-2024-07-18, so match the longest known prefix.
         for name in sorted(self.pricesPerMillion, key=len, reverse=True):
             if model.startswith(name):

@@ -13,3 +13,5 @@ k8s
 services/web
 .claude
 *.md
+# Report skills are Markdown the orchestrator reads at run time.
+!services/orchestrator/skills/**

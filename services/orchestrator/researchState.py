@@ -7,6 +7,7 @@ class ResearchTask(TypedDict):
     traceId: str
     question: str
     searchQuery: str
+    part: int  # which sub-question, from 1, so the live view can follow each researcher
     mode: str  # workflow or agent, see ResearcherSwitch
 
 
@@ -22,6 +23,7 @@ class ResearchState(TypedDict, total=False):
     assumption: str
     sensitiveReason: str
     plan: list[dict[str, str]]
+    reportSkill: str  # which report style the writer follows, see ReportSkills
     findings: Annotated[list[dict[str, Any]], operator.add]
     verdicts: list[dict[str, Any]]
     draft: str

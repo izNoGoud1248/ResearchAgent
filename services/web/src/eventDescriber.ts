@@ -1,4 +1,5 @@
 import type { RunEvent } from "./api/types";
+import { Formatter } from "./formatter";
 
 /** Turns raw run events into one readable line each for the live feed. */
 export class EventDescriber {
@@ -9,11 +10,11 @@ export class EventDescriber {
       case "runStarted":
         return data["job"] === "resume" ? "Run resumed after your input" : "Run picked up by a worker";
       case "nodeStarted":
-        return `${node} started`;
+        return `${node}${EventDescriber.part(data)} started`;
       case "nodeFinished":
-        return `${node} finished${EventDescriber.finishedDetail(data)}`;
+        return `${node}${EventDescriber.part(data)} finished${EventDescriber.finishedDetail(data)}`;
       case "toolCall":
-        return `${EventDescriber.text(data["agent"])} called ${EventDescriber.text(data["tool"])} through the MCP gateway${
+        return `${EventDescriber.text(data["agent"])}${EventDescriber.part(data)} called ${EventDescriber.text(data["tool"])} through the MCP gateway${
           data["query"] ? `: "${EventDescriber.text(data["query"])}"` : ""
         }`;
       case "a2aCall":
@@ -38,7 +39,10 @@ export class EventDescriber {
     const update = data["update"];
     if (typeof update !== "object" || update === null) return "";
     const fields = update as Record<string, unknown>;
-    if (typeof fields["plan"] === "number") return `: ${fields["plan"]} sub-questions`;
+    if (typeof fields["plan"] === "number") {
+      const style = typeof fields["reportSkill"] === "string" ? `, ${Formatter.skillName(fields["reportSkill"]).toLowerCase()} style` : "";
+      return `: ${fields["plan"]} sub-questions${style}`;
+    }
     if (typeof fields["findings"] === "number") return `: ${fields["findings"]} finding`;
     if (typeof fields["verdicts"] === "number") return `: ${fields["verdicts"]} verdicts`;
     if (typeof fields["drafts"] === "number") return `: draft ${fields["drafts"]}`;
@@ -53,6 +57,10 @@ export class EventDescriber {
     if (action === "reject") return ": rejected";
     if (typeof fields["noteId"] === "string") return ": report saved";
     return "";
+  }
+
+  private static part(data: Record<string, unknown>): string {
+    return typeof data["part"] === "number" ? ` #${data["part"]}` : "";
   }
 
   private static text(value: unknown): string {

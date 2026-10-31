@@ -7,6 +7,7 @@ import { ClarifyForm } from "../components/ClarifyForm";
 import { DecisionForm } from "../components/DecisionForm";
 import { FollowUpBox } from "../components/FollowUpBox";
 import { MarkdownView } from "../components/MarkdownView";
+import { ResearcherPanel } from "../components/ResearcherPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { EventDescriber } from "../eventDescriber";
 import { RunProgress } from "../runProgress";
@@ -17,6 +18,17 @@ interface LiveRunPageProps {
   client: ApiClient;
   runId: string;
   role: Role;
+}
+
+/** Prints only the report (see the print styles); the browser's print dialog saves it as a PDF. */
+class ReportPrinter {
+  static print(question: string): void {
+    const title = document.title;
+    // The page title becomes the suggested file name.
+    document.title = question.slice(0, 80);
+    window.print();
+    document.title = title;
+  }
 }
 
 export function LiveRunPage({ client, runId, role }: LiveRunPageProps) {
@@ -105,6 +117,8 @@ export function LiveRunPage({ client, runId, role }: LiveRunPageProps) {
         <AgentGraph progress={progress} />
       </div>
 
+      <ResearcherPanel lanes={progress.researcherLanes()} />
+
       {run.status === "awaitingClarification" && run.clarification.question && (
         <div className="card approvalBanner">
           <strong>Before researching, the Clarifier needs one answer from you.</strong>
@@ -140,8 +154,16 @@ export function LiveRunPage({ client, runId, role }: LiveRunPageProps) {
             ))}
           </ol>
         </div>
-        <div className="card">
-          <h2>Report</h2>
+        <div className="card reportCard">
+          <div className="reportHeading">
+            <h2>Report</h2>
+            {progress.reportSkill && <span className="skillChip">{Formatter.skillName(progress.reportSkill)}</span>}
+            {report && (
+              <button className="secondary printButton" onClick={() => ReportPrinter.print(run.question)}>
+                Download PDF
+              </button>
+            )}
+          </div>
           {report ? <MarkdownView markdown={report} /> : <p className="muted">The report appears here when the writer and critic are done.</p>}
           {(run.note || run.review) && (
             <div className="reportFooter muted">

@@ -60,9 +60,11 @@ class LlmClient:
         breaker: CircuitBreaker,
         retrier: Retrier,
         embeddingModel: str = "text-embedding-3-small",
+        embeddingClient: AsyncOpenAI | None = None,
     ):
         self.embeddingModel = embeddingModel
         self.openai = openaiClient
+        self.embedder = embeddingClient or openaiClient
         self.router = router
         self.cache = cache
         self.costTracker = costTracker
@@ -73,14 +75,20 @@ class LlmClient:
     @classmethod
     def fromSettings(cls, settings: Settings, redis: Redis) -> "LlmClient":
         perMinute = settings.openaiRequestsPerMinute
+        # Without a key the client cannot be built; embedding calls then fail with an authentication error.
+        openaiKey = settings.openaiApiKey.get_secret_value() if settings.openaiApiKey else "not-set"
+        openaiClient = AsyncOpenAI(api_key=openaiKey, max_retries=0)
+        chatClient = AsyncOpenAI(base_url=settings.llmBaseUrl, api_key=openaiKey, max_retries=0) if settings.llmBaseUrl else openaiClient
+        local = frozenset({settings.cheapModel, settings.strongModel}) if settings.llmBaseUrl else frozenset()
         return cls(
-            AsyncOpenAI(api_key=settings.openaiApiKey.get_secret_value(), max_retries=0),
+            chatClient,
             ModelRouter(settings.cheapModel, settings.strongModel),
             ResponseCache(redis, "llm", ttl=86400),
-            CostTracker(redis),
+            CostTracker(redis, freeModels=local),
             RateLimiter(redis, "openai", capacity=perMinute, refillPerSecond=perMinute / 60),
             CircuitBreaker(redis, "openai", countOn=cls.transientErrors),
-            Retrier(attempts=3, timeout=60, retryOn=cls.transientErrors),
+            Retrier(attempts=3, timeout=settings.llmTimeoutSeconds, retryOn=cls.transientErrors),
+            embeddingClient=openaiClient,
         )
 
     async def complete(
@@ -154,7 +162,7 @@ class LlmClient:
         with Tracer.span("llm.embed", runId=runId, texts=len(texts), **{"gen_ai.request.model": self.embeddingModel}) as span:
             await self.limiter.acquire("global")
             response = await self.breaker.call(
-                lambda: self.retrier.run(lambda: self.openai.embeddings.create(model=self.embeddingModel, input=texts))
+                lambda: self.retrier.run(lambda: self.embedder.embeddings.create(model=self.embeddingModel, input=texts))
             )
             cost = await self.costTracker.record(runId, response.model, response.usage.prompt_tokens, 0)
             span.set_attributes({"gen_ai.usage.input_tokens": response.usage.prompt_tokens, "llm.costUsd": cost})

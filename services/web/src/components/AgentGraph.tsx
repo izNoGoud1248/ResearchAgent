@@ -86,9 +86,21 @@ export function AgentGraph({ progress }: { progress: RunProgress }) {
       {agentNodes.map((node, index) => {
         const state = progress.stateOf(node);
         const runs = progress.timesRun(node);
-        const detail = state === "paused" ? "WAITING FOR YOU" : runs > 1 ? `RUN x${runs}` : (subtitles[node] ?? state.toUpperCase());
+        const lanes = node === "researcher" ? progress.researcherLanes() : [];
+        const detail =
+          lanes.length > 1
+            ? `${lanes.filter((lane) => lane.state === "done").length}/${lanes.length} DONE`
+            : state === "paused"
+              ? "WAITING FOR YOU"
+              : runs > 1
+                ? `RUN x${runs}`
+                : (subtitles[node] ?? state.toUpperCase());
         return (
           <g key={node} className={`agentNode ${state}`} transform={`translate(${x(index)}, ${top})`}>
+            {/* Parallel researchers show as a stack of cards, one behind the other. */}
+            {lanes.slice(1, 3).map((lane, offset) => (
+              <rect key={lane.part} className="stackCard" x={(2 - offset) * 4} y={(offset - 2) * 4} width={boxWidth} height={boxHeight} rx="12" />
+            ))}
             <rect width={boxWidth} height={boxHeight} rx="12" />
             <circle className="nodeDot" cx="12" cy="12" r="3" />
             <text x={boxWidth / 2} y="29" className="nodeLabel">

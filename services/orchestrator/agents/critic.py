@@ -2,6 +2,7 @@ from typing import Any
 
 from libs.llm.jsonReply import JsonReply
 from libs.llm.llmClient import LlmClient
+from services.orchestrator.reportSkills import ReportSkills
 from services.orchestrator.researchState import ResearchState
 
 
@@ -15,14 +16,15 @@ class Critic:
         'Return JSON: {"score": int, "feedback": str} with concrete fixes in feedback.'
     )
 
-    def __init__(self, llm: LlmClient):
+    def __init__(self, llm: LlmClient, skills: ReportSkills):
         self.llm = llm
+        self.skills = skills
 
     async def run(self, state: ResearchState) -> dict[str, Any]:
         reply = await self.llm.complete(
             "critic",
             [
-                {"role": "system", "content": self.instructions},
+                {"role": "system", "content": self.instructions + self.checklist(state)},
                 {"role": "user", "content": f"Question: {state['question']}\n\nBrief:\n{state['draft']}"},
             ],
             runId=state["runId"],
@@ -34,6 +36,10 @@ class Critic:
             "score": int(score) if isinstance(score, (int, float)) else 0,
             "feedback": str(parsed.get("feedback", "")),
         }}
+
+    def checklist(self, state: ResearchState) -> str:
+        skill = self.skills.get(state.get("reportSkill"))
+        return f" The brief must also follow the {skill.title} style:\n" + "\n".join(f"- {item}" for item in skill.checklist)
 
     def nextStep(self, state: ResearchState) -> str:
         if state["critique"]["score"] >= self.passingScore or state["drafts"] >= self.maxDrafts:

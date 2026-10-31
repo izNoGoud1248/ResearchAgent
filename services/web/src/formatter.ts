@@ -1,6 +1,12 @@
 import type { CostTotal } from "./api/types";
 
 export class Formatter {
+  /** Skill folder names are camelCase, such as comparisonReport; shown as "Comparison report". */
+  static skillName(name: string): string {
+    const words = name.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  }
+
   static time(iso: string): string {
     return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   }

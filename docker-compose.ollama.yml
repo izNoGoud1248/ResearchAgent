@@ -1,0 +1,19 @@
+# Runs the agents on local models served by Ollama, so testing spends no OpenAI tokens.
+#   docker compose -f docker-compose.yml -f docker-compose.ollama.yml --profile app up -d --wait
+# Leave this file out of the command to go back to OpenAI. The paper library's embeddings still use OpenAI.
+
+x-localModels: &localModels
+  LLM_BASE_URL: http://host.docker.internal:11434/v1
+  CHEAP_MODEL: qwen2.5:latest
+  STRONG_MODEL: qwen2.5:latest
+  # Local models are much slower than the API, and Ollama answers one request at a time.
+  LLM_TIMEOUT_SECONDS: "300"
+  A2A_TIMEOUT_SECONDS: "900"
+
+services:
+  orchestrator:
+    environment: *localModels
+  factchecker:
+    environment: *localModels
+  api:
+    environment: *localModels

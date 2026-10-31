@@ -848,6 +848,107 @@ button:disabled {
   margin: 0.75rem 0;
 }
 
+.agentNode .stackCard {
+  fill: var(--surfaceStrong);
+  stroke: var(--borderStrong);
+  opacity: 0.6;
+}
+
+.researcherPanel {
+  margin-bottom: 1.25rem;
+}
+
+.researcherPanel .panelHeading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.researcherPanel ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.lane {
+  display: grid;
+  grid-template-columns: auto auto 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--borderStrong);
+  border-radius: 10px;
+  background: var(--surfaceStrong);
+}
+
+.laneNumber {
+  font-family: var(--mono, monospace);
+  color: var(--muted);
+}
+
+.laneDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.lane-running .laneDot {
+  background: var(--running);
+  animation: blink 1s ease-in-out infinite;
+}
+
+.lane-done .laneDot {
+  background: var(--success);
+}
+
+.laneBody {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.laneQuestion {
+  font-weight: 600;
+}
+
+.laneDetail {
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laneState {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+}
+
+.lane-running .laneState {
+  color: var(--running);
+}
+
+.lane-done .laneState {
+  color: var(--success);
+}
+
+@media (max-width: 640px) {
+  .lane {
+    grid-template-columns: auto 1fr;
+  }
+
+  .laneDot,
+  .laneState {
+    display: none;
+  }
+}
+
 .approvalBanner {
   margin-bottom: 1.25rem;
   border-color: color-mix(in srgb, var(--warning) 45%, transparent);
@@ -1041,6 +1142,127 @@ button:disabled {
   font-family: var(--fontBody);
   font-size: 0.82rem;
   color: var(--text);
+  white-space: normal;
+  border-bottom: 2px solid var(--borderStrong);
+}
+
+.reportTable tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--surfaceStrong) 45%, transparent);
+}
+
+.reportTable td:first-child {
+  font-weight: 600;
+}
+
+/* Words in tables wrap whole; a table wider than the column scrolls instead. Short values keep a minimum width. */
+.reportTable th,
+.reportTable td {
+  overflow-wrap: normal;
+  min-width: 5ch;
+}
+
+.reportHeading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.reportHeading h2 {
+  margin: 0;
+}
+
+.skillChip {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--borderStrong);
+  color: var(--running);
+}
+
+.printButton {
+  margin-left: auto;
+}
+
+/* Download PDF: print the title and the report only, black on white, with tables kept whole. */
+@media print {
+  @page {
+    margin: 16mm;
+  }
+
+  body,
+  .liveRun,
+  .card {
+    background: #fff !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .topBar,
+  .runMeta,
+  .traceLinks,
+  .badge,
+  .graphCard,
+  .researcherPanel,
+  .approvalBanner,
+  .feed,
+  .reportHeading,
+  .reportFooter,
+  .followUp,
+  .eyebrow {
+    display: none !important;
+  }
+
+  .runColumns {
+    display: block !important;
+  }
+
+  .card {
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  .report,
+  .report * {
+    color: #000 !important;
+  }
+
+  .report a {
+    text-decoration: underline;
+  }
+
+  .report h3::before {
+    display: none;
+  }
+
+  .reportTable {
+    overflow: visible;
+    border: 1px solid #999;
+  }
+
+  .reportTable th,
+  .reportTable td {
+    border: 1px solid #bbb;
+  }
+
+  .reportTable th {
+    background: #eee !important;
+  }
+
+  .reportTable tbody tr,
+  .reportTable tbody tr:nth-child(even) {
+    background: #fff !important;
+  }
+
+  .reportTable tr {
+    break-inside: avoid;
+  }
+
+  .report h2,
+  .report h3 {
+    break-after: avoid;
+  }
 }
 
 .followUp {

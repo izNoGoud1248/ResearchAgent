@@ -166,7 +166,7 @@ class TestAgentResearcher:
         llm = LlmClient.fromSettings(settings, redis)
         researcher = AgentResearcher(llm, toolStack.client, RunEvents(redis))
         task = {"runId": "agentTest", "traceId": "trace1", "question": "How does speculative decoding speed up LLM inference?",
-                "searchQuery": "speculative decoding", "mode": "agent"}
+                "searchQuery": "speculative decoding", "part": 1, "mode": "agent"}
         finding = (await researcher.run(task))["findings"][0]
 
         events = await RunEvents(redis).read("agentTest", "0", blockMs=10)
@@ -187,7 +187,7 @@ class TestAgentResearcher:
         researcher = AgentResearcher(llm, toolStack.client, RunEvents(redis))
         researcher.budget = Budget(maxSteps=1, maxUsd=0.03, maxSeconds=150)
         task = {"runId": "agentBudget", "traceId": "trace1", "question": "What are open problems in LLM agent evaluation?",
-                "searchQuery": "LLM agent evaluation", "mode": "agent"}
+                "searchQuery": "LLM agent evaluation", "part": 1, "mode": "agent"}
         finding = (await researcher.run(task))["findings"][0]
         events = await RunEvents(redis).read("agentBudget", "0", blockMs=10)
         finished = next(event["data"] for event in events if event["kind"] == "agentFinished")

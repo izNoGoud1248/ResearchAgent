@@ -16,6 +16,7 @@ from libs.tools.gatewayClient import GatewayClient
 from services.orchestrator.agents.agentResearcher import AgentResearcher
 from services.orchestrator.agents.critic import Critic
 from services.orchestrator.agents.clarifier import Clarifier
+from services.orchestrator.reportSkills import ReportSkills
 from services.orchestrator.agents.factCheckStep import FactCheckStep
 from services.orchestrator.agents.noteSaver import NoteSaver
 from services.orchestrator.agents.planner import Planner
@@ -52,15 +53,16 @@ class OrchestratorFactory:
         events = RunEvents(redis)
         issuer = AgentTokenIssuer(settings.decodeKey(settings.agentSigningSeed.get_secret_value()))
         tools = GatewayClient(gatewayUrl or settings.gatewayUrl, issuer)
-        factChecker = A2aClient(factCheckerUrl or settings.factCheckerUrl, issuer, audience="factChecker")
+        factChecker = A2aClient(factCheckerUrl or settings.factCheckerUrl, issuer, audience="factChecker", timeout=settings.a2aTimeoutSeconds)
 
+        skills = ReportSkills()
         graph = ResearchGraph(
             clarifier=Clarifier(llm, tools),
-            planner=Planner(llm),
+            planner=Planner(llm, skills),
             researcher=ResearcherSwitch(Researcher(llm, tools, events), AgentResearcher(llm, tools, events)),
             factCheck=FactCheckStep(factChecker, events),
-            writer=Writer(llm),
-            critic=Critic(llm),
+            writer=Writer(llm, skills),
+            critic=Critic(llm, skills),
             sensitivity=SensitivityCheck(llm),
             approval=ApprovalGate(),
             noteSaver=NoteSaver(tools, events),

@@ -124,7 +124,7 @@ class AgentResearcher:
 
         async def announce(tool: str, arguments: dict[str, Any]) -> None:
             await self.events.publish(
-                runId, "toolCall", agent="researcher (agent)", tool=tool,
+                runId, "toolCall", agent="researcher (agent)", tool=tool, part=task["part"],
                 query=str(arguments.get("query") or arguments.get("paperId") or ", ".join(arguments.get("ids", []))),
             )
 
@@ -133,7 +133,7 @@ class AgentResearcher:
             f"Sub-question: {task['question']}\nA reasonable first search: {task['searchQuery']}", runId
         )
         await self.events.publish(
-            runId, "agentFinished", agent="researcher", stopReason=result.stopReason,
+            runId, "agentFinished", agent="researcher", part=task["part"], stopReason=result.stopReason,
             steps=len(result.steps), usd=round(result.usd, 5),
         )
         return {"findings": [self.finding(task, result.output or {}, papers)]}
@@ -151,5 +151,9 @@ class AgentResearcher:
             "question": task["question"],
             "summary": str(output.get("summary", "")),
             "claims": claims,
-            "papers": [{"id": paper["id"], "title": paper["title"], "url": f"https://arxiv.org/abs/{paper['id']}"} for paper in keep],
+            "papers": [
+                # Papers seen only through library passages carry no date.
+                {"id": paper["id"], "title": paper["title"], "published": str(paper.get("published", ""))[:10], "url": f"https://arxiv.org/abs/{paper['id']}"}
+                for paper in keep
+            ],
         }

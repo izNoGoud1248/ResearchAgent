@@ -24,12 +24,15 @@ class Researcher:
         self.shelf = PaperShelf(tools)
 
     async def run(self, task: ResearchTask) -> dict[str, Any]:
-        await self.events.publish(task["runId"], "toolCall", agent="researcher", tool="arxiv.search", query=task["searchQuery"])
+        await self.events.publish(task["runId"], "toolCall", agent="researcher", tool="arxiv.search", query=task["searchQuery"], part=task["part"])
         result = await self.tools.call(
             "researcher", task["runId"], task["traceId"], "arxiv.search", {"query": task["searchQuery"], "maxResults": 5}
         )
         await self.shelf.add("researcher", task["runId"], task["traceId"], result["papers"])
-        papers = [{"id": paper["id"], "title": paper["title"], "summary": paper["summary"][:900]} for paper in result["papers"]]
+        papers = [
+            {"id": paper["id"], "title": paper["title"], "published": paper["published"][:10], "summary": paper["summary"][:900]}
+            for paper in result["papers"]
+        ]
 
         reply = await self.llm.complete(
             "researcher",
@@ -45,6 +48,9 @@ class Researcher:
             "question": task["question"],
             "summary": str(parsed.get("summary", "")),
             "claims": [str(claim) for claim in parsed.get("claims", [])][:4],
-            "papers": [{"id": paper["id"], "title": paper["title"], "url": f"https://arxiv.org/abs/{paper['id']}"} for paper in papers],
+            "papers": [
+                {"id": paper["id"], "title": paper["title"], "published": paper["published"], "url": f"https://arxiv.org/abs/{paper['id']}"}
+                for paper in papers
+            ],
         }
         return {"findings": [finding]}

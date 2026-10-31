@@ -13,6 +13,12 @@ class Settings(BaseSettings):
     cheapModel: str = Field("gpt-4o-mini", validation_alias="CHEAP_MODEL")
     strongModel: str = Field("gpt-4o", validation_alias="STRONG_MODEL")
     openaiRequestsPerMinute: int = Field(60, validation_alias="OPENAI_REQUESTS_PER_MINUTE")
+    # Any OpenAI-compatible server for chat, such as Ollama at http://localhost:11434/v1. Empty means OpenAI.
+    # Embeddings stay on OpenAI: the paper library's vectors have OpenAI's dimensions.
+    llmBaseUrl: str = Field("", validation_alias="LLM_BASE_URL")
+    llmTimeoutSeconds: int = Field(60, validation_alias="LLM_TIMEOUT_SECONDS")
+    # How long the orchestrator waits for the Fact-Checker, which makes its own model calls.
+    a2aTimeoutSeconds: int = Field(180, validation_alias="A2A_TIMEOUT_SECONDS")
     researcherMode: Literal["workflow", "agent"] = Field("workflow", validation_alias="RESEARCHER_MODE")
 
     redisHost: str = Field("localhost", validation_alias="REDIS_HOST")

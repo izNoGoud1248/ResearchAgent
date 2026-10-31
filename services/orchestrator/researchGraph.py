@@ -79,20 +79,29 @@ class ResearchGraph:
 
     @staticmethod
     def fanOut(state: ResearchState) -> list[Send]:
+        mode = state.get("researcherMode", "workflow")
         return [
-            Send("researcher", {"runId": state["runId"], "traceId": state["traceId"], "mode": state.get("researcherMode", "workflow"), **part})
-            for part in state["plan"]
+            Send("researcher", {"runId": state["runId"], "traceId": state["traceId"], "mode": mode, "part": number, **part})
+            for number, part in enumerate(state["plan"], start=1)
         ]
 
     def withEvents(self, name: str, action: NodeAction) -> NodeAction:
         async def run(state: Any) -> dict[str, Any]:
             with Tracer.span(f"agent.{name}", expected=(GraphBubbleUp,), runId=state["runId"]):
-                await self.events.publish(state["runId"], "nodeStarted", node=name)
+                lane = self.lane(name, state)
+                await self.events.publish(state["runId"], "nodeStarted", node=name, **lane)
                 update = await action(state)
-                await self.events.publish(state["runId"], "nodeFinished", node=name, update=self.describe(update))
+                if lane:
+                    lane["papers"] = sum(len(finding["papers"]) for finding in update.get("findings", []))
+                await self.events.publish(state["runId"], "nodeFinished", node=name, update=self.describe(update), **lane)
                 return update
 
         return run
+
+    @staticmethod
+    def lane(name: str, state: Any) -> dict[str, Any]:
+        # Parallel researchers share one node name; their sub-question number tells them apart in the live view.
+        return {"part": state["part"], "question": state["question"]} if name == "researcher" else {}
 
     @staticmethod
     def describe(update: dict[str, Any]) -> dict[str, Any]:

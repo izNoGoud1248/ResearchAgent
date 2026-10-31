@@ -32,6 +32,17 @@ Open http://localhost:8088 and sign in with `USER_API_KEY` or `APPROVER_API_KEY`
 
 One Python image (`Dockerfile`) runs all seven services, each started with its own module through `uv run`, as a non-root user; secrets come from `.env` at runtime and are never in an image. nginx (`services/web`) serves the UI with security headers and forwards `/api` to the API, unbuffered so live events stream. Only the UI (8088) and the API (127.0.0.1:8010, for curl and the evaluation harness) are published. Signing in in the browser exchanges the key for a signed, httpOnly, SameSite=Strict session cookie, so JavaScript never holds a key; `X-Api-Key` still works for scripts. The MCP servers keep the SDK's DNS-rebinding protection on and accept their own container hostnames.
 
+## Testing on local models
+
+To try changes without spending OpenAI tokens, run the agents on models served by [Ollama](https://ollama.com):
+
+```
+ollama pull qwen2.5
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml --profile app up -d --wait
+```
+
+The override points the orchestrator, Fact-Checker and API at Ollama through its OpenAI-compatible endpoint, uses `qwen2.5` for every task and allows 300 seconds per model call and 900 for the Fact-Checker. Run the same command without `-f docker-compose.ollama.yml` to go back to OpenAI. Local calls are recorded with their token counts at zero cost. The paper library still embeds with OpenAI, because its vectors have OpenAI's dimensions; that costs fractions of a cent. Expect slower runs and weaker briefs than with gpt-4o: this mode is for checking that flows work, not for judging quality. Outside containers, set `LLM_BASE_URL=http://localhost:11434/v1`, `CHEAP_MODEL` and `STRONG_MODEL` in the environment.
+
 ## Running it on the host (for development)
 
 Stop the `app` containers first; they use the same ports and queue. Then, each in its own terminal:
@@ -115,6 +126,12 @@ The first runs against real Redis (database 15, wiped before and after each test
 ## Clarifying unclear questions
 
 Before planning, the Clarifier picks out terms in the question a researcher might not recognise (unusual acronyms, unfamiliar model names, likely typos) and looks each one up on arXiv. The question is then clear, researched under an assumption the brief states, or put back to the user: the run pauses as `awaitingClarification`, the live page shows the question with suggested answers, and `POST /runs/{runId}/clarify` with `{"answer": ...}` resumes it. It asks only when the possible readings would lead to different research, not to have ordinary terms defined.
+
+## Report skills
+
+Report styles live as files in `services/orchestrator/skills/`: each folder has a `SKILL.md` (front matter with a name and description, writing rules, and a `## Checklist`) and a `template.md`. The planner picks a style from the descriptions, the writer follows its rules and template, and the critic scores the draft against its checklist. There are three: a research brief (the default), a comparison report (verdict, a cited comparison table, when to use which) and a literature review (key papers by year, research directions, open problems). Adding a style is adding a folder. The run page shows the style chosen, and Download PDF prints the report alone in a print layout.
+
+The run page also shows the parallel researchers: one row per sub-question with its latest search, tool calls, papers cited and, in agent mode, steps and stop reason.
 
 ## Paper library and follow-up questions
 
