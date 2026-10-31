@@ -11,7 +11,8 @@ class Planner:
 
     instructions = (
         "You plan literature research. Split the user's question into 2 to 4 focused sub-questions. "
-        "For each, give a short keyword query suited to the arXiv search API (3 to 6 words, no quotes). "
+        "For each, give a short keyword query suited to the arXiv search API: 2 to 5 distinctive terms, no quotes "
+        "and no filler words such as 'current', 'use', 'today' or 'latest', because a paper must contain every term. "
         "When a sub-question names a specific method or model, put its field in the query too, for example "
         "'EAGLE speculative decoding' rather than 'EAGLE': bare names also match papers from unrelated fields. "
         "Also pick the report style that best fits the question from this list:\n{skills}\n"

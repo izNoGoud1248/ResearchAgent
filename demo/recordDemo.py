@@ -8,7 +8,7 @@ from playwright.sync_api import Page, sync_playwright
 
 from libs.settings import Settings
 
-webUrl = "http://localhost:5173"
+webUrl = "http://localhost:8088"
 outputDirectory = Path(__file__).resolve().parent / "output"
 
 
@@ -87,7 +87,8 @@ class DemoRecorder:
     """Drives the running app through a full research run and records it, then encodes an MP4 for LinkedIn."""
 
     nodeCaptions = {
-        "Planner": "The planner splits the question into focused sub-questions",
+        "Clarifier": "The Clarifier checks unfamiliar terms on arXiv before any research",
+        "Planner": "The planner splits the question and picks a report style",
         "Researchers": "Researchers search arXiv in parallel, every call through the MCP gateway",
         "Fact-Checker": "An independent Fact-Checker agent verifies the claims over A2A",
         "Writer": "The writer drafts a cited research brief",
@@ -96,9 +97,10 @@ class DemoRecorder:
         "Save note": "Approved: the report is saved through the MCP notes tool",
     }
 
-    # A question the LLM cache has not seen, so every agent visibly does its work on camera.
-    question = "How are LLM agents evaluated on long-horizon, multi-step tool use?"
-    reviewNote = "Add a short Limitations section with two open problems."
+    # A question the LLM cache has not seen, so every agent visibly does its work on camera. "EGALE" is a
+    # deliberate typo for EAGLE, so the Clarifier has something to ask about.
+    question = "Which speculative decoding method gives the bigger speed-up, Medusa or EGALE, and can I use them today?"
+    clarification = "EAGLE, the speculative decoding method. EGALE was a typo."
 
     def __init__(self, settings: Settings, speed: float = 1.5):
         self.apiKey = settings.approverApiKey.get_secret_value()
@@ -112,7 +114,8 @@ class DemoRecorder:
         rawDirectory = outputDirectory / "raw"
         shutil.rmtree(rawDirectory, ignore_errors=True)
         with sync_playwright() as playwright:
-            browser = playwright.chromium.launch()
+            # Software WebGL, so the 3D knowledge graph renders in a headless browser.
+            browser = playwright.chromium.launch(args=["--use-angle=swiftshader", "--enable-unsafe-swiftshader"])
             context = browser.new_context(
                 viewport={"width": 1920, "height": 1080},
                 color_scheme="dark",
@@ -131,82 +134,98 @@ class DemoRecorder:
 
     def perform(self, page: Page, overlay: Overlay) -> None:
         self.openQuietly(page, webUrl, "Research with an")
-        overlay.card("ResearchDesk", "A production-grade multi-agent research system: LangGraph, MCP, A2A, guardrails, OpenTelemetry", 4)
+        overlay.card("ResearchDesk", "A production-grade multi-agent research system: LangGraph, MCP, A2A, RAG, guardrails, OpenTelemetry", 4)
 
         overlay.caption("STEP 1", "Sign in with a role-based API key")
-        page.wait_for_timeout(1200)
+        page.wait_for_timeout(1000)
         page.locator("input[type=password]").press_sequentially(self.apiKey[:16], delay=25)
         page.locator("input[type=password]").fill(self.apiKey)
         page.get_by_role("button", name="Continue").click()
         page.wait_for_selector("textarea")
-        overlay.caption("STEP 2", "Ask a research question")
-        page.wait_for_timeout(1500)
-
-        page.locator("textarea").press_sequentially(self.question, delay=35)
-        page.wait_for_timeout(600)
+        overlay.caption("STEP 2", "Ask a research question, typo included")
+        page.wait_for_timeout(1200)
+        page.locator("textarea").press_sequentially(self.question, delay=30)
+        page.wait_for_timeout(500)
         overlay.caption("STEP 2", "Mark it sensitive: a human must approve before anything is saved")
         page.locator(".toggle input").click()
-        page.wait_for_timeout(1800)
+        page.wait_for_timeout(1500)
         page.get_by_role("button", name="Start research").click()
 
         page.wait_for_selector(".agentGraph")
-        overlay.caption("STEP 3", "Queued, picked up by a worker, and traced end to end")
-        self.followAgents(page, overlay, until="Needs approval", step="STEP 3")
-
-        overlay.caption("STEP 4", "Human in the loop: the draft waits for an approver")
-        page.wait_for_timeout(2500)
-        self.scrollTo(page, ".report")
-        page.wait_for_timeout(3500)
-        self.scrollTo(page, ".approvalBanner")
-        page.wait_for_timeout(1000)
-        overlay.caption("STEP 4", "Request changes: the note goes back to the writer")
-        page.locator(".approvalBanner textarea").press_sequentially(self.reviewNote, delay=30)
-        page.wait_for_timeout(800)
-        page.get_by_role("button", name="Request changes").click()
-
-        self.followAgents(page, overlay, until="Revised draft 1", step="STEP 5")
-        overlay.caption("STEP 5", "Revised draft is back, with the requested Limitations section")
-        self.scrollTo(page, ".report")
-        page.wait_for_timeout(2000)
-        page.evaluate("window.scrollBy({ top: 700, behavior: 'smooth' })")
+        self.followAgents(page, overlay, until="Needs your answer", step="STEP 3")
+        overlay.caption("STEP 3", "Unclear term: the Clarifier asks before spending anything on research")
         page.wait_for_timeout(3000)
+        # Filled in one go: typing waits for the box to hold still, which the redrawing page does not always allow.
+        page.locator(".approvalBanner input").fill(self.clarification)
+        page.wait_for_timeout(600)
+        page.get_by_role("button", name="Send answer").click()
+
+        page.wait_for_selector(".researcherPanel", timeout=120000)
+        self.scrollTo(page, ".graphCard")
+        overlay.caption("STEP 4", "Researchers fan out in parallel, one per sub-question, live")
+        page.wait_for_timeout(5000)
+        self.followAgents(page, overlay, until="Needs approval", step="STEP 4")
+
+        overlay.caption("STEP 5", "A comparison report: verdict first, then a cited comparison table")
+        self.scrollTo(page, ".reportCard")
+        page.wait_for_timeout(4500)
+        if page.locator(".reportFigure").count() > 0:
+            page.evaluate("document.querySelector('.reportFigure')?.scrollIntoView({ behavior: 'smooth', block: 'center' })")
+            overlay.caption("STEP 5", "Real figures from the cited papers, with caption and source")
+            page.wait_for_timeout(4500)
         self.scrollTo(page, ".approvalBanner")
-        page.wait_for_timeout(1000)
-        overlay.caption("STEP 6", "Approve: saved through the MCP notes tool")
+        page.wait_for_timeout(800)
+        overlay.caption("STEP 6", "Human in the loop: approve, request changes or reject")
+        page.wait_for_timeout(2500)
         page.get_by_role("button", name="Approve and save").click()
         self.followAgents(page, overlay, until="Completed", step="STEP 6")
         page.evaluate("window.scrollTo({ top: 0, behavior: 'smooth' })")
-        overlay.caption("STEP 6", "Done: cost, tokens, critic scores and trace id on one page")
+        overlay.caption("STEP 6", "Saved, written to the Obsidian vault, one trace end to end")
         page.wait_for_timeout(3500)
 
         jaegerUrl = page.get_by_role("link", name="Trace in Jaeger").get_attribute("href")
-        kibanaUrl = page.get_by_role("link", name="Logs in Kibana").get_attribute("href")
-        appUrl = page.url
+        appUrl = page.url.split("#")[0]
+
+        self.openQuietly(page, appUrl + "#/knowledge", "Knowledge graph")
+        overlay.caption("STEP 7", "Every report, cited paper and topic as one knowledge graph")
+        page.wait_for_timeout(7000)
+        overlay.caption("STEP 7", "Research areas are found automatically and coloured")
+        page.locator(".clusterChip").first.click()
+        page.wait_for_timeout(4000)
+        page.locator(".closeButton").click()
+
+        overlay.caption("STEP 8", "The same graph in 3D")
+        page.get_by_role("button", name="3D").click()
+        page.wait_for_selector(".knowledgeSpace canvas", timeout=60000)
+        page.wait_for_timeout(7000)
+        box = page.locator(".knowledgeSpace").bounding_box()
+        if box:
+            # A slow drag rotates the camera around the graph.
+            centreX, centreY = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
+            page.mouse.move(centreX - 250, centreY)
+            page.mouse.down()
+            page.mouse.move(centreX + 250, centreY - 60, steps=90)
+            page.mouse.up()
+        page.wait_for_timeout(2500)
 
         self.openQuietly(page, jaegerUrl, "Service & Operation")
-        overlay.caption("STEP 7", "One OpenTelemetry trace across API, queue, agents, MCP, A2A and every LLM call")
+        overlay.caption("STEP 9", "One OpenTelemetry trace across API, queue, agents, MCP, A2A and every LLM call")
         page.wait_for_timeout(4000)
         page.mouse.wheel(0, 700)
-        page.wait_for_timeout(3500)
-
-        self.openQuietly(page, kibanaUrl, "Documents")
-        page.wait_for_timeout(1500)
-        overlay.caption("STEP 8", "Structured logs and the gateway audit trail in Kibana, same trace id")
-        page.wait_for_timeout(5000)
+        page.wait_for_timeout(3000)
 
         for route, heading, step, text in (
-            ("#/history", "History", "STEP 9", "History: status, duration, tokens, cost and model per run"),
-            ("#/ops", "Operations", "STEP 10", "Ops: queue backpressure, circuit breakers and cache hit rates"),
+            ("#/ops", "Operations", "STEP 10", "Ops: live workers, queue backpressure, circuit breakers, cache hit rates"),
             ("#/security", "Security", "STEP 11", "Security: every tool call the gateway allowed, denied or redacted"),
         ):
-            self.openQuietly(page, appUrl.split("#")[0] + route, heading)
+            self.openQuietly(page, appUrl + route, heading)
             overlay.caption(step, text)
             page.wait_for_timeout(3500)
 
         overlay.card(
             "Built for production",
-            "Guardrails · RBAC with signed agent tokens · PII redaction · rate limits · circuit breakers · "
-            "human approval · Postgres checkpoints · OpenTelemetry, Jaeger, ELK, Langfuse",
+            "Clarifier · parallel agents · fact-checking over A2A · report skills · paper RAG · knowledge graph · "
+            "signed agent tokens · PII redaction · circuit breakers · human approval · OpenTelemetry, ELK, Langfuse · Kubernetes",
             5,
         )
 

@@ -1252,14 +1252,129 @@ button:disabled {
   flex: none;
 }
 
+/* The graph is a night sky in both themes, so its glowing colours read the same. */
 .knowledgeCard {
   position: relative;
   padding: 0;
   overflow: hidden;
+  border-color: rgba(255, 255, 255, 0.08);
   background:
-    radial-gradient(circle at 30% 20%, rgba(139, 108, 255, 0.12), transparent 45%),
-    radial-gradient(circle at 75% 80%, rgba(34, 211, 238, 0.1), transparent 45%),
-    var(--surface);
+    radial-gradient(ellipse at 50% 40%, rgba(40, 46, 90, 0.55), transparent 70%),
+    #04050b;
+}
+
+.modeSwitch {
+  display: inline-flex;
+  padding: 3px;
+  border: 1px solid var(--borderStrong);
+  border-radius: 999px;
+  background: var(--surfaceStrong);
+}
+
+.modeSwitch button {
+  padding: 0.3rem 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+
+.modeSwitch button.active {
+  background: var(--accentGradient);
+  color: #fff;
+}
+
+.knowledgeSpace {
+  cursor: grab;
+}
+
+/* The 3D library's own styles: it injects them as <style> elements, which the Content-Security-Policy blocks. */
+.float-tooltip-kap {
+  position: absolute;
+  width: max-content;
+  max-width: max(50%, 150px);
+  pointer-events: none;
+}
+
+.scene-container .clickable {
+  cursor: pointer;
+}
+
+.scene-container .grabbable {
+  cursor: grab;
+}
+
+.scene-container .grabbable:active {
+  cursor: grabbing;
+}
+
+.scene-container canvas:focus {
+  outline: none;
+}
+
+.graph3dLabel {
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(4, 5, 11, 0.85);
+  color: #f4f6fb;
+  font: 500 12px Inter, system-ui, sans-serif;
+}
+
+.clusterRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin: -0.25rem 0 1rem;
+  font-size: 0.8rem;
+}
+
+.clusterChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.clusterChip:hover {
+  border-color: var(--borderStrong);
+}
+
+.shapeIcon {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff, #9aa3b8 55%, #4a5168);
+}
+
+.shape-report {
+  width: 12px;
+  height: 12px;
+}
+
+.shape-paper {
+  width: 7px;
+  height: 7px;
+}
+
+.shape-topic {
+  box-shadow: 0 0 0 2px var(--surfaceStrong), 0 0 0 3px #9aa3b8;
+}
+
+.shape-note {
+  outline: 1px dashed #9aa3b8;
+  outline-offset: 2px;
 }
 
 .knowledgeCanvas {
@@ -1270,12 +1385,18 @@ button:disabled {
   touch-action: none;
 }
 
+/* display: block above would otherwise override the hidden attribute while the 3D view is shown. */
+.knowledgeCanvas[hidden] {
+  display: none;
+}
+
 .knowledgeHint {
   position: absolute;
   left: 1rem;
   bottom: 0.6rem;
   margin: 0;
   font-size: 0.75rem;
+  color: rgba(244, 246, 251, 0.5);
   pointer-events: none;
 }
 

@@ -52,16 +52,34 @@ class SearchServer:
     ) -> dict[str, Any]:
         """Keyword search. sortBy newest and sinceYear make "latest work" questions return recent papers."""
         maxResults = max(1, min(maxResults, 10))
-        fullQuery = f"({query}) AND submittedDate:[{sinceYear}01010000 TO 299912312359]" if sinceYear else query
-        order = arxiv.SortCriterion.SubmittedDate if sortBy == "newest" else arxiv.SortCriterion.Relevance
         with Tracer.span("mcpSearch.search", carrier=ctx.headers or {}, query=query, sortBy=sortBy) as span:
-            papers, cached = await self.cache.getOrCompute(
-                {"query": fullQuery, "maxResults": maxResults, "sortBy": sortBy},
-                lambda: self.retrier.run(lambda: self.fetch(arxiv.Search(query=fullQuery, max_results=maxResults, sort_by=order))),
-            )
+            # arXiv matches papers with any of the words, so "EAGLE speculative decoding" finds a galaxy simulation
+            # called EAGLE. Papers with every term come first; papers with any of them only fill the remaining slots.
+            papers, cached = await self.cachedSearch(self.allTerms(query), maxResults, sortBy, sinceYear)
+            if len(papers) < maxResults and self.allTerms(query) != query:
+                more, cachedMore = await self.cachedSearch(query, maxResults, sortBy, sinceYear)
+                known = {paper["id"] for paper in papers}
+                papers += [paper for paper in more if paper["id"] not in known][: maxResults - len(papers)]
+                cached = cached and cachedMore
             span.set_attributes({"cached": cached, "papers": len(papers)})
         payload = {"query": query, "papers": papers}
         return {"payload": payload, "signature": self.signer.sign(payload)}
+
+    @staticmethod
+    def allTerms(query: str) -> str:
+        """Plain keywords become all:a AND all:b; a query already written with fields or operators is left alone."""
+        if ":" in query or re.search(r"\b(AND|OR|ANDNOT)\b", query):
+            return query
+        terms = re.findall(r"[\w-]+", query)
+        return " AND ".join(f"all:{term}" for term in terms) if len(terms) > 1 else query
+
+    async def cachedSearch(self, query: str, maxResults: int, sortBy: str, sinceYear: int | None) -> tuple[list[dict[str, Any]], bool]:
+        fullQuery = f"({query}) AND submittedDate:[{sinceYear}01010000 TO 299912312359]" if sinceYear else query
+        order = arxiv.SortCriterion.SubmittedDate if sortBy == "newest" else arxiv.SortCriterion.Relevance
+        return await self.cache.getOrCompute(
+            {"query": fullQuery, "maxResults": maxResults, "sortBy": sortBy},
+            lambda: self.retrier.run(lambda: self.fetch(arxiv.Search(query=fullQuery, max_results=maxResults, sort_by=order))),
+        )
 
     async def byId(self, ids: list[str], ctx: Context) -> dict[str, Any]:
         # Ids come from model-written text, so only well-formed modern arXiv ids are passed on, at most 20.
