@@ -5,10 +5,16 @@ server {
     root /usr/share/nginx/html;
     server_tokens off;
 
+    # Look the API up on every request (cached briefly), not once at startup: a recreated API container gets a new address.
+    # NGINX_LOCAL_RESOLVERS is the container's own DNS server, filled in by the nginx image at startup.
+    resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
+
     # /api/runs -> http://api:8010/runs. Same origin as the UI, so the session cookie flows and no CORS is needed.
     location /api/ {
         include /etc/nginx/snippets/securityHeaders.conf;
-        proxy_pass http://api:8010/;
+        set $apiUpstream http://${API_HOST}:8010;
+        rewrite ^/api/(.*)$ /$1 break;
+        proxy_pass $apiUpstream;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

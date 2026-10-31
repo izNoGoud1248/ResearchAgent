@@ -271,6 +271,7 @@ items:
           containers:
             - name: web
               image: researchdesk-web:0.1.0
+              env: [{ name: API_HOST, value: api.researchdesk.svc.cluster.local }]
               ports: [{ containerPort: 80 }]
               readinessProbe: { httpGet: { path: /, port: 80 }, periodSeconds: 5 }
               livenessProbe: { httpGet: { path: /, port: 80 }, periodSeconds: 15 }

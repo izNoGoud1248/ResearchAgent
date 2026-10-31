@@ -8,6 +8,9 @@ COPY src ./src
 RUN npm run build
 
 FROM nginx:1.29-alpine
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# The image fills ${...} in templates at startup. nginx's own DNS lookups skip search domains,
+# so Kubernetes sets API_HOST to the API service's full name.
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1 API_HOST=api
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY securityHeaders.conf /etc/nginx/snippets/securityHeaders.conf
 COPY --from=build /web/dist /usr/share/nginx/html
