@@ -1,5 +1,7 @@
 # ResearchDesk
 
+[![CI](https://github.com/izNoGoud1248/ResearchAgent/actions/workflows/ci.yml/badge.svg)](https://github.com/izNoGoud1248/ResearchAgent/actions/workflows/ci.yml)
+
 A multi-agent research assistant built to practise production patterns end to end: guardrails, reliability, MCP, A2A, RAG, observability, evaluation and Kubernetes. Everything talks to real services. See `plan.md` for the design and build stages.
 
 The agent workflow is deliberately simple: a planner splits the question, researchers search arXiv in parallel, an independent Fact-Checker verifies each claim against the paper it cites, a writer and critic produce a cited brief, and sensitive briefs wait for a human to approve, revise or reject them. The work is in everything around it.

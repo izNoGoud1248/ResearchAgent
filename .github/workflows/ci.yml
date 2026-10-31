@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Unit tests (real Redis and Postgres)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      # Throwaway secrets for this run only; initEnv.py never prints them.
+      - name: Create .env
+        run: uv run scripts/initEnv.py
+
+      - name: Start Redis and Postgres
+        run: |
+          set -a; . ./.env; set +a
+          docker run -d --name redis -p "$REDIS_PORT:6379" redis:7.4-alpine redis-server --requirepass "$REDIS_PASSWORD"
+          docker run -d --name postgres -p "$POSTGRES_PORT:5432" \
+            -e POSTGRES_USER="$POSTGRES_USER" -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" -e POSTGRES_DB="$POSTGRES_DB" \
+            pgvector/pgvector:0.8.0-pg16
+          for attempt in $(seq 30); do
+            docker exec postgres pg_isready -h 127.0.0.1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" && break
+            sleep 2
+          done
+
+      - name: Unit tests
+        run: uv run pytest tests/unit -q
+
+  web:
+    name: Web build (strict TypeScript)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: services/web/package-lock.json
+
+      - run: npm ci
+      - run: npm run build
