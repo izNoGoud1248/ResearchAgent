@@ -1161,6 +1161,28 @@ button:disabled {
   min-width: 5ch;
 }
 
+.reportFigure {
+  margin: 1.25rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radiusSmall);
+  background: #fff;
+  text-align: center;
+}
+
+.reportFigure img {
+  max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.reportFigure figcaption {
+  margin-top: 0.5rem;
+  color: #333;
+  font-size: 0.82rem;
+  text-align: left;
+}
+
 .reportHeading {
   display: flex;
   align-items: center;
@@ -1182,6 +1204,169 @@ button:disabled {
 
 .printButton {
   margin-left: auto;
+}
+
+/* Knowledge graph */
+
+.knowledgeToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.knowledgeSearch {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--borderStrong);
+  border-radius: 999px;
+  background: var(--surfaceStrong);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.legendItem.off {
+  opacity: 0.4;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.knowledgeCard {
+  position: relative;
+  padding: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(139, 108, 255, 0.12), transparent 45%),
+    radial-gradient(circle at 75% 80%, rgba(34, 211, 238, 0.1), transparent 45%),
+    var(--surface);
+}
+
+.knowledgeCanvas {
+  display: block;
+  width: 100%;
+  height: min(72vh, 760px);
+  cursor: grab;
+  touch-action: none;
+}
+
+.knowledgeHint {
+  position: absolute;
+  left: 1rem;
+  bottom: 0.6rem;
+  margin: 0;
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+
+.knowledgeEmpty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+}
+
+.knowledgeDetail {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  bottom: 1rem;
+  width: min(360px, calc(100% - 2rem));
+  overflow-y: auto;
+  padding: 1.1rem 1.2rem;
+  border: 1px solid var(--borderStrong);
+  border-radius: var(--radius);
+  background: color-mix(in srgb, var(--surfaceStrong) 92%, transparent);
+  backdrop-filter: blur(14px);
+  box-shadow: var(--shadow);
+}
+
+.knowledgeDetail h2 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.05rem;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text);
+}
+
+.knowledgeDetail h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+.closeButton {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.75rem;
+  font-size: 1.3rem;
+}
+
+.detailType {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 600;
+}
+
+.detailMeta,
+.detailLinks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.detailLinks button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: left;
+}
+
+.detailActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.9rem;
+}
+
+.buttonLink {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .knowledgeDetail {
+    top: auto;
+    height: 55%;
+  }
 }
 
 /* Download PDF: print the title and the report only, black on white, with tables kept whole. */
@@ -1251,11 +1436,14 @@ button:disabled {
   }
 
   .reportTable tbody tr,
-  .reportTable tbody tr:nth-child(even) {
+  .reportTable tbody tr:nth-child(even),
+  .reportTable tbody tr:hover,
+  .reportTable td {
     background: #fff !important;
   }
 
-  .reportTable tr {
+  .reportTable tr,
+  .reportFigure {
     break-inside: avoid;
   }
 

@@ -5,6 +5,7 @@ import { KeyForm } from "./components/KeyForm";
 import { ApprovalsPage } from "./pages/ApprovalsPage";
 import { AskPage } from "./pages/AskPage";
 import { HistoryPage } from "./pages/HistoryPage";
+import { KnowledgePage } from "./pages/KnowledgePage";
 import { LiveRunPage } from "./pages/LiveRunPage";
 import { OpsPage } from "./pages/OpsPage";
 import { SecurityPage } from "./pages/SecurityPage";
@@ -14,6 +15,7 @@ const navigation: { route: Route; label: string; approverOnly?: boolean }[] = [
   { route: { page: "ask" }, label: "Ask" },
   { route: { page: "approvals" }, label: "Approvals", approverOnly: true },
   { route: { page: "history" }, label: "History" },
+  { route: { page: "knowledge" }, label: "Knowledge" },
   { route: { page: "ops" }, label: "Ops" },
   { route: { page: "security" }, label: "Security" },
 ];
@@ -92,6 +94,7 @@ export function App() {
         {route.page === "history" && <HistoryPage client={client} />}
         {route.page === "ops" && <OpsPage client={client} />}
         {route.page === "security" && <SecurityPage client={client} />}
+        {route.page === "knowledge" && <KnowledgePage client={client} />}
       </main>
     </div>
   );

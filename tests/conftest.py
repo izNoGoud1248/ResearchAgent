@@ -47,8 +47,10 @@ class ScratchDatabase:
 
 
 @pytest.fixture(scope="session")
-def settings() -> Settings:
-    return ScratchDatabase.settingsFor(Settings())
+def settings(tmp_path_factory: pytest.TempPathFactory) -> Settings:
+    # Test runs write vault notes to a scratch folder, never the real vault.
+    vault = str(tmp_path_factory.mktemp("knowledge"))
+    return ScratchDatabase.settingsFor(Settings()).model_copy(update={"knowledgeDir": vault})
 
 
 @pytest.fixture

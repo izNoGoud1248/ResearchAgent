@@ -12,7 +12,8 @@ roles:
     tools: [arxiv.search]
   writer:
     issuer: orchestrator
-    tools: [notes.save, notes.read]
+    # paper.figures gives the writer figures from the papers a report cites.
+    tools: [notes.save, notes.read, paper.figures]
   factChecker:
     issuer: factChecker
     # fetch looks up the exact papers a claim cites; when an abstract cannot settle a claim,

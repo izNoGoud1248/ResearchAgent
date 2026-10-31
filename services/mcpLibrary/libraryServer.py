@@ -4,6 +4,7 @@ from typing import Any
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from psycopg.rows import dict_row
+from psycopg.types.json import Jsonb
 from psycopg_pool import AsyncConnectionPool
 from starlette.applications import Starlette
 
@@ -11,7 +12,7 @@ from libs.guardrails.responseValidator import ResponseSigner
 from libs.llm.llmClient import LlmClient
 from libs.telemetry.tracer import Tracer
 from libs.tools.mcpTransport import McpTransport
-from services.mcpLibrary.fullTextReader import FullTextReader, Passage
+from services.mcpLibrary.fullTextReader import FullText, FullTextReader
 
 
 class LibraryServer:
@@ -43,6 +44,8 @@ CREATE TABLE IF NOT EXISTS passages (
 );
 CREATE INDEX IF NOT EXISTS passagesEmbedding ON passages USING hnsw (embedding vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS passagesSearch ON passages USING gin (search);
+-- NULL: not looked for yet (full text stored before figures were kept); [] means the paper has none.
+ALTER TABLE papers ADD COLUMN IF NOT EXISTS figures jsonb;
 """
 
     searchQuery = """
@@ -83,6 +86,7 @@ LIMIT %(limit)s
         self.server.tool(name="add", description="Add papers (id, title, published, summary) to the library.")(self.add)
         self.server.tool(name="search", description="Search stored paper passages by meaning and keywords.")(self.search)
         self.server.tool(name="read", description="Read a paper's full text by section; fetched and stored on first use.")(self.read)
+        self.server.tool(name="figures", description="Figures (image link, caption, section) from papers' full text.")(self.figures)
 
     async def setup(self) -> None:
         async with self.pool.connection() as connection:
@@ -168,6 +172,33 @@ LIMIT %(limit)s
         text = " ".join(row["body"] for row in rows if row["section"] == wanted)
         return self.signed({"paperId": paperId, "fullText": available, "section": wanted, "text": text[:8000]})
 
+    maxFigurePapers = 4
+
+    async def figures(self, paperIds: list[str], runId: str, ctx: Context) -> dict[str, Any]:
+        """Figures of up to four papers already in the library, reading their full text first if needed."""
+        ids = [self.baseId(paperId) for paperId in paperIds if self.idPattern.fullmatch(paperId.strip())][: self.maxFigurePapers]
+        found: list[dict[str, Any]] = []
+        with Tracer.span("mcpLibrary.figures", carrier=ctx.headers or {}, papers=len(ids)):
+            for paperId in ids:
+                try:
+                    await self.ensureFullText(paperId, runId)
+                except ToolError:
+                    continue  # not in the library: nothing to show for it
+                async with self.pool.connection() as connection:
+                    row = await (await connection.execute("SELECT version, fulltext, figures FROM papers WHERE id = %s", (paperId,))).fetchone()
+                version, hasFullText, figures = row
+                if hasFullText and figures is None:
+                    figures = await self.backfillFigures(paperId)
+                found += [{"paperId": version, **figure} for figure in figures or []]
+        return self.signed({"figures": found})
+
+    async def backfillFigures(self, paperId: str) -> list[dict[str, Any]]:
+        fullText = await self.reader.read(paperId)
+        figures = [figure.asDict() for figure in fullText.figures] if fullText else []
+        async with self.pool.connection() as connection:
+            await connection.execute("UPDATE papers SET figures = %s WHERE id = %s", (Jsonb(figures), paperId))
+        return figures
+
     async def ensureFullText(self, paperId: str, runId: str) -> bool:
         async with self.pool.connection() as connection:
             row = await (await connection.execute("SELECT fulltext FROM papers WHERE id = %s", (paperId,))).fetchone()
@@ -175,13 +206,14 @@ LIMIT %(limit)s
             raise ToolError(f"paper {paperId} is not in the library yet; search for it first")
         if row[0]:
             return True
-        passages = await self.reader.read(paperId)
-        if not passages:
+        fullText = await self.reader.read(paperId)
+        if fullText is None or not fullText.passages:
             return False
-        await self.store(paperId, passages, runId)
+        await self.store(paperId, fullText, runId)
         return True
 
-    async def store(self, paperId: str, passages: list[Passage], runId: str) -> None:
+    async def store(self, paperId: str, fullText: FullText, runId: str) -> None:
+        passages = fullText.passages
         vectors: list[list[float]] = []
         # Embeddings in batches of 100 passages, well within the API's per-request limit.
         for start in range(0, len(passages), 100):
@@ -195,7 +227,10 @@ LIMIT %(limit)s
                         "ON CONFLICT (paper, section, position) DO UPDATE SET body = EXCLUDED.body, embedding = EXCLUDED.embedding",
                         (paperId, passage.section, passage.position, passage.body, self.vectorText(vector)),
                     )
-                await connection.execute("UPDATE papers SET fulltext = true WHERE id = %s", (paperId,))
+                await connection.execute(
+                    "UPDATE papers SET fulltext = true, figures = %s WHERE id = %s",
+                    (Jsonb([figure.asDict() for figure in fullText.figures]), paperId),
+                )
 
     def signed(self, payload: dict[str, Any]) -> dict[str, Any]:
         return {"payload": payload, "signature": self.signer.sign(payload)}

@@ -6,14 +6,15 @@ export type Route =
   | { page: "approvals" }
   | { page: "history" }
   | { page: "ops" }
-  | { page: "security" };
+  | { page: "security" }
+  | { page: "knowledge" };
 
 export class HashRouter {
   static parse(hash: string): Route {
     const parts = hash.replace(/^#\/?/, "").split("/");
     const [page, runId] = parts;
     if (page === "runs" && runId) return { page: "run", runId: decodeURIComponent(runId) };
-    if (page === "approvals" || page === "history" || page === "ops" || page === "security") return { page };
+    if (page === "approvals" || page === "history" || page === "ops" || page === "security" || page === "knowledge") return { page };
     return { page: "ask" };
   }
 

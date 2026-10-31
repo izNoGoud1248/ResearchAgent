@@ -76,6 +76,7 @@ class McpGateway:
         self.server.tool(name="library.add", description="Add papers to the paper library.")(self.libraryAdd)
         self.server.tool(name="library.search", description="Search stored paper passages by meaning and keywords.")(self.librarySearch)
         self.server.tool(name="paper.read", description="Read a paper's full text by section.")(self.paperRead)
+        self.server.tool(name="paper.figures", description="Figures (image link, caption, section) from papers' full text.")(self.paperFigures)
         self.server.tool(name="notes.read", description="Read a saved note by id.")(self.notesRead)
 
     def app(self, url: str) -> Starlette:
@@ -103,6 +104,9 @@ class McpGateway:
 
     async def paperRead(self, paperId: str, ctx: Context, section: str | None = None) -> dict[str, Any]:
         return await self.forward(ctx, "paper.read", {"paperId": paperId} | ({"section": section} if section else {}))
+
+    async def paperFigures(self, paperIds: list[str], ctx: Context) -> dict[str, Any]:
+        return await self.forward(ctx, "paper.figures", {"paperIds": paperIds})
 
     async def notesSave(self, title: str, body: str, ctx: Context) -> dict[str, Any]:
         return await self.forward(ctx, "notes.save", {"title": title, "body": body})

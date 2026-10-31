@@ -1,12 +1,14 @@
 import asyncio
 import contextlib
 import signal
+from datetime import UTC, datetime
 from typing import Any
 
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import Command
 from opentelemetry.trace import StatusCode
 
+from libs.knowledge.knowledgeVault import KnowledgeVault, VaultReport
 from libs.llm.costTracker import CostTracker
 from libs.reliability.heartbeat import Heartbeat
 from libs.reliability.jobQueue import Job, JobQueue
@@ -22,8 +24,16 @@ class OrchestratorWorker:
     maxConcurrency = 4
 
     def __init__(
-        self, graph: CompiledStateGraph, queue: JobQueue, runs: RunStore, events: RunEvents, costs: CostTracker, heartbeat: Heartbeat
+        self,
+        graph: CompiledStateGraph,
+        queue: JobQueue,
+        runs: RunStore,
+        events: RunEvents,
+        costs: CostTracker,
+        heartbeat: Heartbeat,
+        vault: KnowledgeVault,
     ):
+        self.vault = vault
         self.graph = graph
         self.queue = queue
         self.runs = runs
@@ -82,6 +92,22 @@ class OrchestratorWorker:
             finally:
                 await self.queue.ack(job)
 
+    async def addToVault(self, runId: str, result: dict[str, Any]) -> None:
+        record = VaultReport(
+            runId=runId,
+            question=result["question"],
+            report=result.get("draft", ""),
+            created=datetime.now(UTC),
+            style=result.get("reportSkill", ""),
+            papers=[paper for finding in result.get("findings", []) for paper in finding["papers"]],
+        )
+        try:
+            path = await self.vault.add(record)
+        except Exception as error:  # LLM or file system: the run is complete either way, only its vault note is missing
+            self.log.warning("vault note failed", runId=runId, error=f"{type(error).__name__}: {error}"[:300])
+            return
+        self.log.info("vault note written", runId=runId, note=path.name)
+
     async def graphInput(self, job: Job, config: dict[str, Any]) -> Any:
         if job.payload["kind"] == "resume":
             return Command(resume=job.payload["decision"])
@@ -113,4 +139,6 @@ class OrchestratorWorker:
             review=result.get("reviewNote", ""), revisions=rounds, cost=cost,
         )
         await self.events.publish(runId, "runFinished", status=status, noteId=result.get("noteId", ""), cost=cost)
+        if status == "completed":
+            await self.addToVault(runId, result)
         self.log.info("run finished", runId=runId, status=status, usd=cost["usd"])

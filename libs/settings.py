@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     elasticsearchUrl: str = Field("http://localhost:9200", validation_alias="ELASTICSEARCH_URL")
     logRetentionDays: int = Field(30, validation_alias="LOG_RETENTION_DAYS")
     langfuseProjectUrl: str = Field("", validation_alias="LANGFUSE_PROJECT_URL")
+    # The Obsidian vault finished reports are written to; open this folder in Obsidian.
+    knowledgeDir: str = Field("knowledge", validation_alias="KNOWLEDGE_DIR")
 
     def trustedIssuers(self) -> dict[str, bytes]:
         return {

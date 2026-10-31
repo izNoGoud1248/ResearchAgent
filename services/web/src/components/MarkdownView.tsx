@@ -4,11 +4,16 @@ type Block =
   | { type: "heading"; level: 1 | 2 | 3; text: string }
   | { type: "list"; ordered: boolean; start: number; items: string[] }
   | { type: "table"; header: string[]; rows: string[][] }
+  | { type: "figure"; caption: string; src: string; source: string }
   | { type: "paragraph"; text: string };
 
 /** A small Markdown subset rendered as React elements, never as raw HTML, because reports contain model output. */
 export class MarkdownParser {
   static readonly arxivId = String.raw`\d{4}\.\d{4,5}(?:v\d+)?`;
+
+  // ![caption](https://arxiv.org/html/... "arXiv:id §Section"). Images from anywhere else are dropped, not shown:
+  // reports are model output, and an image link elsewhere could track readers.
+  static readonly figureLine = /^!\[([^\]]*)\]\((https:\/\/arxiv\.org\/html\/[\w./-]+)(?:\s+"([^"]*)")?\)$/;
 
   // Order matters: a full Markdown link wins over a bare citation that starts at the same bracket.
   static readonly inlinePattern = new RegExp(
@@ -41,8 +46,12 @@ export class MarkdownParser {
       const line = rawLine.trim();
       const heading = /^(#{1,3})\s+(.*)$/.exec(line);
       const item = /^([-*]|\d+\.)\s+(.*)$/.exec(line);
+      const figure = MarkdownParser.figureLine.exec(line);
       if (!line) {
         flush();
+      } else if (line.startsWith("![")) {
+        flush();
+        if (figure?.[2]) blocks.push({ type: "figure", caption: figure[1] ?? "", src: figure[2], source: figure[3] ?? "" });
       } else if (line.startsWith("|")) {
         if (!table.length) flush();
         // Skip the |---|---| row under the header.
@@ -126,6 +135,17 @@ export function MarkdownView({ markdown }: { markdown: string }) {
                 <li key={itemIndex}>{MarkdownParser.inline(item)}</li>
               ))}
             </List>
+          );
+        }
+        if (block.type === "figure") {
+          return (
+            <figure key={index} className="reportFigure">
+              <img src={block.src} alt={block.caption} loading="lazy" referrerPolicy="no-referrer" />
+              <figcaption>
+                {MarkdownParser.inline(block.caption)}
+                {block.source && <> {MarkdownParser.inline(`[${block.source}]`)}</>}
+              </figcaption>
+            </figure>
           );
         }
         if (block.type === "table") {

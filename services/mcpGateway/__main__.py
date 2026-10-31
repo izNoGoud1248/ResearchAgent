@@ -26,6 +26,7 @@ class GatewayService:
                     "library.add": Route("mcpLibrary", settings.libraryUrl, "add", passRunId=True),
                     "library.search": Route("mcpLibrary", settings.libraryUrl, "search", passRunId=True, documents=True),
                     "paper.read": Route("mcpLibrary", settings.libraryUrl, "read", passRunId=True, documents=True),
+                    "paper.figures": Route("mcpLibrary", settings.libraryUrl, "figures", passRunId=True, documents=True),
                 },
                 verifier=AgentTokenVerifier(settings.trustedIssuers()),
                 permissions=PermissionGuard.fromFile(Path(__file__).parent / "policy.yaml"),

@@ -26,6 +26,7 @@ class ResearchState(TypedDict, total=False):
     reportSkill: str  # which report style the writer follows, see ReportSkills
     findings: Annotated[list[dict[str, Any]], operator.add]
     verdicts: list[dict[str, Any]]
+    figures: list[dict[str, Any]]
     draft: str
     drafts: int
     critique: dict[str, Any]

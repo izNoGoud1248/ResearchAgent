@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg.rows import dict_row
 from psycopg_pool import AsyncConnectionPool
@@ -5,6 +7,7 @@ from redis.asyncio import Redis
 
 from libs.guardrails.agentToken import AgentTokenIssuer
 from libs.guardrails.approvalGate import ApprovalGate
+from libs.knowledge.knowledgeVault import KnowledgeVault
 from libs.llm.costTracker import CostTracker
 from libs.llm.llmClient import LlmClient
 from libs.reliability.heartbeat import Heartbeat
@@ -18,6 +21,7 @@ from services.orchestrator.agents.critic import Critic
 from services.orchestrator.agents.clarifier import Clarifier
 from services.orchestrator.reportSkills import ReportSkills
 from services.orchestrator.agents.factCheckStep import FactCheckStep
+from services.orchestrator.agents.figureFinder import FigureFinder
 from services.orchestrator.agents.noteSaver import NoteSaver
 from services.orchestrator.agents.planner import Planner
 from services.orchestrator.agents.researcher import Researcher
@@ -61,6 +65,7 @@ class OrchestratorFactory:
             planner=Planner(llm, skills),
             researcher=ResearcherSwitch(Researcher(llm, tools, events), AgentResearcher(llm, tools, events)),
             factCheck=FactCheckStep(factChecker, events),
+            figureFinder=FigureFinder(tools),
             writer=Writer(llm, skills),
             critic=Critic(llm, skills),
             sensitivity=SensitivityCheck(llm),
@@ -72,7 +77,8 @@ class OrchestratorFactory:
         await checkpointer.setup()
         runs = RunStore(pool)
         await runs.setup()
-        return OrchestratorWorker(graph.compile(checkpointer), cls.queue(redis), runs, events, CostTracker(redis), Heartbeat(redis))
+        vault = KnowledgeVault(Path(settings.knowledgeDir), llm)
+        return OrchestratorWorker(graph.compile(checkpointer), cls.queue(redis), runs, events, CostTracker(redis), Heartbeat(redis), vault)
 
     @classmethod
     def queue(cls, redis: Redis) -> JobQueue:

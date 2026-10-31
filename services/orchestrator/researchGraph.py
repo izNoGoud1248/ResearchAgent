@@ -13,6 +13,7 @@ from libs.telemetry.tracer import Tracer
 from services.orchestrator.agents.clarifier import Clarifier, ClarifyingQuestion
 from services.orchestrator.agents.critic import Critic
 from services.orchestrator.agents.factCheckStep import FactCheckStep
+from services.orchestrator.agents.figureFinder import FigureFinder
 from services.orchestrator.agents.noteSaver import NoteSaver
 from services.orchestrator.agents.planner import Planner
 from services.orchestrator.agents.researcherSwitch import ResearcherSwitch
@@ -24,7 +25,7 @@ NodeAction = Callable[[Any], Awaitable[dict[str, Any]]]
 
 
 class ResearchGraph:
-    """Clarifier (may ask the user) -> planner -> researchers in parallel -> fact-check (A2A) -> writer <-> critic -> sensitivity -> approval -> save.
+    """Clarifier (may ask the user) -> planner -> researchers in parallel -> fact-check (A2A) -> figures -> writer <-> critic -> sensitivity -> approval -> save.
 
     At approval a reviewer can also send the draft back to the writer with notes.
     """
@@ -35,6 +36,7 @@ class ResearchGraph:
         planner: Planner,
         researcher: ResearcherSwitch,
         factCheck: FactCheckStep,
+        figureFinder: FigureFinder,
         writer: Writer,
         critic: Critic,
         sensitivity: SensitivityCheck,
@@ -53,6 +55,7 @@ class ResearchGraph:
             "planner": planner.run,
             "researcher": researcher.run,
             "factCheck": factCheck.run,
+            "figures": figureFinder.run,
             "writer": writer.run,
             "critic": critic.run,
             "sensitivity": sensitivity.run,
@@ -69,7 +72,8 @@ class ResearchGraph:
         graph.add_edge("askUser", "planner")
         graph.add_conditional_edges("planner", self.fanOut, ["researcher"])
         graph.add_edge("researcher", "factCheck")
-        graph.add_edge("factCheck", "writer")
+        graph.add_edge("factCheck", "figures")
+        graph.add_edge("figures", "writer")
         graph.add_edge("writer", "critic")
         graph.add_conditional_edges("critic", self.critic.nextStep, ["writer", "sensitivity"])
         graph.add_conditional_edges("sensitivity", self.sensitivity.nextStep, ["approval", "saveNote"])

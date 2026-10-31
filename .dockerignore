@@ -5,6 +5,7 @@
 **/*.pyc
 .pytest_cache
 logs
+knowledge
 demo
 evals/results
 observability

@@ -17,7 +17,7 @@ def newRun() -> str:
 class TestFullTextReader:
     async def testSplitsARealPaperIntoItsOwnSections(self, redis):
         reader = FullTextReader(RateLimiter(redis, "arxiv", capacity=1, refillPerSecond=1 / 3))
-        passages = await reader.read("1706.03762")
+        passages = (await reader.read("1706.03762")).passages
         sections = list(dict.fromkeys(passage.section for passage in passages))
         assert sections[0] == "Abstract"
         assert {"Model Architecture", "Results"} <= set(sections)
@@ -25,6 +25,13 @@ class TestFullTextReader:
         assert all(40 < len(passage.body) <= 1500 for passage in passages)
         results = " ".join(passage.body for passage in passages if passage.section == "Results")
         assert "BLEU" in results
+
+    async def testKeepsNumberedTopLevelFiguresWithAbsoluteLinks(self, redis):
+        reader = FullTextReader(RateLimiter(redis, "arxiv", capacity=1, refillPerSecond=1 / 3))
+        figures = (await reader.read("2401.10774")).figures
+        assert figures[0].label == "Figure 1"
+        assert all(figure.imageUrl.startswith("https://arxiv.org/html/2401.10774v") for figure in figures)
+        assert all(figure.caption and figure.section for figure in figures)
 
     async def testPaperWithoutHtmlVersionGivesNone(self, redis):
         reader = FullTextReader(RateLimiter(redis, "arxiv", capacity=1, refillPerSecond=1 / 3))

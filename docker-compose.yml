@@ -202,6 +202,10 @@ services:
   orchestrator:
     <<: *pythonService
     command: ["services.orchestrator"]
+    volumes:
+      - ./logs:/app/logs
+      # The Obsidian vault; open ./knowledge in Obsidian.
+      - ./knowledge:/app/knowledge
     # A job a stopped worker held goes back to the queue when its lease runs out.
     stop_grace_period: 30s
     depends_on:
@@ -214,6 +218,9 @@ services:
   api:
     <<: *pythonService
     command: ["services.api"]
+    volumes:
+      - ./logs:/app/logs
+      - ./knowledge:/app/knowledge:ro
     ports:
       - "127.0.0.1:8010:8010"
     healthcheck:

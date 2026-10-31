@@ -52,6 +52,26 @@ export interface Run extends RunSummary {
   revisionsLeft: number;
 }
 
+export type KnowledgeNodeType = "report" | "paper" | "topic" | "note";
+
+export interface KnowledgeNode {
+  id: string;
+  type: KnowledgeNodeType;
+  label: string;
+  links: number;
+  meta: { runId?: string; question?: string; style?: string; created?: string; published?: string; url?: string; arxiv?: string };
+}
+
+export interface KnowledgeEdge {
+  source: string;
+  target: string;
+}
+
+export interface KnowledgeGraphData {
+  nodes: KnowledgeNode[];
+  edges: KnowledgeEdge[];
+}
+
 export interface ToolLinks {
   jaeger: string;
   kibana: string;

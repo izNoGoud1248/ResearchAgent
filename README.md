@@ -133,6 +133,18 @@ Report styles live as files in `services/orchestrator/skills/`: each folder has 
 
 The run page also shows the parallel researchers: one row per sub-question with its latest search, tool calls, papers cited and, in agent mode, steps and stop reason.
 
+## Knowledge vault
+
+Every completed report is also written to an [Obsidian](https://obsidian.md) vault in `knowledge/` (git-ignored; `KNOWLEDGE_DIR` to move it): a note per report in `Reports/`, per cited paper in `Papers/` and per topic in `Topics/`, joined by `[[wikilinks]]`. Citations in a report link to the paper notes, and a small model call tags each report with two to four topics, reusing existing topic names so related reports connect. Open the folder as a vault in Obsidian to browse it and see its graph view. Notes are only added or rewritten by name, so notes you write in the vault are left alone.
+
+The Knowledge tab draws the same graph from the vault's files: reports, papers, topics and any notes of your own, with search, type filters and a detail panel per note. To add reports written before the vault existed (the latest report per question):
+
+```
+uv run python -m services.orchestrator.knowledgeBackfill
+```
+
+Reports can also include figures: the paper library keeps each paper's numbered figures from its arXiv HTML version, and the writer may place one or two from the cited papers with their caption and source. The UI only shows images from arxiv.org, enforced by the report renderer and the page's Content-Security-Policy.
+
 ## Paper library and follow-up questions
 
 Every paper the researchers find goes into a library (`services/mcpLibrary`, Postgres with pgvector). `paper.read` fetches a paper's full text from arXiv's HTML version, splits it by section and embeds it; `library.search` is hybrid search (full-text and vector, merged by reciprocal rank fusion). On a finished report, the follow-up box answers questions from the full text of the papers it cites, citing the section each statement comes from, and flags any citation that was not among the retrieved passages. Paper text passes through the gateway like any tool result, with instruction-like spans neutralized.

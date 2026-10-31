@@ -1,6 +1,7 @@
 import json
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException, Request, Response
@@ -12,6 +13,7 @@ from sse_starlette import EventSourceResponse
 
 from libs.guardrails.approvalGate import ApprovalGate
 from libs.guardrails.inputGuard import InputGuard
+from libs.knowledge.knowledgeGraph import KnowledgeGraph
 from libs.llm.responseCache import ResponseCache
 from libs.reliability.circuitBreaker import CircuitBreaker
 from libs.reliability.heartbeat import Heartbeat
@@ -74,6 +76,7 @@ class ApiApp:
         self.queue = queue
         self.audit = audit
         self.followUp = followUp
+        self.knowledge = KnowledgeGraph(Path(settings.knowledgeDir))
         self.events = RunEvents(redis)
         self.breakers = [CircuitBreaker(redis, name) for name in self.breakerNames]
         self.caches = {name: ResponseCache(redis, name) for name in self.cacheNames}
@@ -94,6 +97,7 @@ class ApiApp:
         self.app.add_api_route("/runs/{runId}/events", self.streamEvents, methods=["GET"])
         self.app.add_api_route("/runs/{runId}/decision", self.decide, methods=["POST"], status_code=202)
         self.app.add_api_route("/runs/{runId}/clarify", self.clarify, methods=["POST"], status_code=202)
+        self.app.add_api_route("/knowledge/graph", self.knowledgeGraph, methods=["GET"])
         self.app.add_api_route("/runs/{runId}/ask", self.askFollowUp, methods=["POST"])
 
     async def askFollowUp(self, runId: str, body: FollowUpRequest, request: Request) -> Any:
@@ -209,6 +213,10 @@ class ApiApp:
         with Tracer.span("run.decision", carrier=job["traceContext"], runId=runId, action=body.action):
             self.log.info("approval decision", runId=runId, action=body.action)
         return {"runId": runId, "status": "resuming"}
+
+    async def knowledgeGraph(self, request: Request) -> dict[str, Any]:
+        self.auth.require(request, "user")
+        return self.knowledge.build()
 
     async def clarify(self, runId: str, body: ClarifyRequest, request: Request) -> dict[str, str]:
         self.auth.require(request, "user")

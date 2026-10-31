@@ -8,4 +8,5 @@ dist/
 logs/
 demo/output/
 backups/
+/knowledge/
 .claude/
