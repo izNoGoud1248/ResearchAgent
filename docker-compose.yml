@@ -1,0 +1,244 @@
+name: researchdesk
+
+# Shared by every Python service in the app profile: same image, secrets from .env, container hostnames.
+x-pythonService: &pythonService
+  build: .
+  image: researchdesk-app:latest
+  profiles: [app]
+  env_file: .env
+  environment: &containerAddresses
+    REDIS_HOST: redis
+    REDIS_PORT: "6379"
+    POSTGRES_HOST: postgres
+    POSTGRES_PORT: "5432"
+    GATEWAY_URL: http://gateway:8100/mcp
+    SEARCH_URL: http://search:8101/mcp
+    NOTES_URL: http://notes:8102/mcp
+    LIBRARY_URL: http://library:8103/mcp
+    FACTCHECKER_URL: http://factchecker:8110
+    API_URL: http://api:8010
+    OTLP_ENDPOINT: http://collector:4318
+  volumes:
+    - ./logs:/app/logs
+  restart: unless-stopped
+  stop_grace_period: 20s
+  depends_on: &dataStores
+    redis:
+      condition: service_healthy
+    postgres:
+      condition: service_healthy
+
+services:
+  redis:
+    image: redis:7.4-alpine
+    profiles: [core, app]
+    # noeviction keeps queue and breaker keys safe; the response cache does its own LRU.
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --appendonly
+      - "yes"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisData:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  postgres:
+    # pgvector build of Postgres 16, for the paper library. Moved from postgres:16-alpine by dump and restore:
+    # a different C library sorts text differently, so the old data directory (volume postgresData) was not reused.
+    image: pgvector/pgvector:0.8.0-pg16
+    profiles: [core, app]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgresVectorData:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    profiles: [observability]
+    command: ["--config=/etc/otel/${COLLECTOR_CONFIG:-collector.yaml}"]
+    environment:
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+      LANGFUSE_OTLP_ENDPOINT: ${LANGFUSE_BASE_URL:-https://cloud.langfuse.com}/api/public/otel
+    volumes:
+      - ./observability/collector.yaml:/etc/otel/collector.yaml:ro
+      - ./observability/collectorLangfuse.yaml:/etc/otel/collectorLangfuse.yaml:ro
+    ports:
+      - "4318:4318"
+    depends_on: [jaeger]
+
+  jaeger:
+    image: jaegertracing/jaeger:2.5.0
+    profiles: [observability]
+    ports:
+      - "16686:16686"
+
+  # Local learning setup: Elasticsearch security is off and it listens only on this machine.
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.17.4
+    profiles: [elk]
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - elasticData:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.17.4
+    profiles: [elk]
+    environment:
+      LS_JAVA_OPTS: -Xms512m -Xmx512m
+      XPACK_MONITORING_ENABLED: "false"
+    volumes:
+      - ./observability/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.17.4
+    profiles: [elk]
+    volumes:
+      - ./observability/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - "127.0.0.1:5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.17.4
+    profiles: [elk]
+    user: root
+    command: ["filebeat", "-e", "--strict.perms=false"]
+    volumes:
+      - ./observability/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - ./logs:/logs:ro
+      - filebeatData:/usr/share/filebeat/data
+    depends_on: [logstash]
+
+  search:
+    <<: *pythonService
+    command: ["services.mcpSearch"]
+    healthcheck: &portCheck
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8101), 2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  notes:
+    <<: *pythonService
+    command: ["services.mcpNotes"]
+    healthcheck:
+      <<: *portCheck
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8102), 2)"]
+
+  library:
+    <<: *pythonService
+    command: ["services.mcpLibrary"]
+    healthcheck:
+      <<: *portCheck
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8103), 2)"]
+
+  gateway:
+    <<: *pythonService
+    command: ["services.mcpGateway"]
+    # This machine only, for the evaluation harness's citation checks; every call still needs a signed agent token.
+    ports:
+      - "127.0.0.1:8100:8100"
+    healthcheck:
+      <<: *portCheck
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8100), 2)"]
+    depends_on:
+      <<: *dataStores
+      search:
+        condition: service_healthy
+      notes:
+        condition: service_healthy
+      library:
+        condition: service_healthy
+
+  factchecker:
+    <<: *pythonService
+    command: ["services.factChecker"]
+    healthcheck:
+      <<: *portCheck
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8110), 2)"]
+    depends_on:
+      <<: *dataStores
+      gateway:
+        condition: service_healthy
+
+  orchestrator:
+    <<: *pythonService
+    command: ["services.orchestrator"]
+    # A job a stopped worker held goes back to the queue when its lease runs out.
+    stop_grace_period: 30s
+    depends_on:
+      <<: *dataStores
+      gateway:
+        condition: service_healthy
+      factchecker:
+        condition: service_healthy
+
+  api:
+    <<: *pythonService
+    command: ["services.api"]
+    ports:
+      - "127.0.0.1:8010:8010"
+    healthcheck:
+      <<: *portCheck
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/health', timeout=2)"]
+
+  web:
+    build: ./services/web
+    image: researchdesk-web:latest
+    profiles: [app]
+    ports:
+      - "8088:80"
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  redisData:
+  postgresData:
+  postgresVectorData:
+  elasticData:
+  filebeatData:

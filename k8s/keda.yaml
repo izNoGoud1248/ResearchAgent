@@ -1,0 +1,38 @@
+# Scale workers on how many research jobs are waiting, one Redis list per priority.
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata: { name: redis-auth, namespace: researchdesk }
+spec:
+  secretTargetRef:
+    - parameter: password
+      name: researchdesk-secrets
+      key: REDIS_PASSWORD
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata: { name: orchestrator, namespace: researchdesk }
+spec:
+  scaleTargetRef: { name: orchestrator }
+  # One worker is always up, so a lone question or an approval never waits for a cold start, and a run in
+  # progress is never scaled away from under itself (KEDA only sees waiting jobs, not ones being worked on).
+  minReplicaCount: 1
+  # Cap tied to the OpenAI quota: OPENAI_REQUESTS_PER_MINUTE is 60, and a busy worker makes about 15 model
+  # calls a minute, so more than 4 workers would only queue on the shared rate limiter. Raise both together.
+  maxReplicaCount: 4
+  pollingInterval: 5
+  cooldownPeriod: 60
+  advanced:
+    horizontalPodAutoscalerConfig:
+      behavior:
+        scaleDown:
+          stabilizationWindowSeconds: 60
+  triggers:
+    - type: redis
+      metadata: { address: redis.researchdesk.svc.cluster.local:6379, listName: "queue:research:high", listLength: "2" }
+      authenticationRef: { name: redis-auth }
+    - type: redis
+      metadata: { address: redis.researchdesk.svc.cluster.local:6379, listName: "queue:research:normal", listLength: "2" }
+      authenticationRef: { name: redis-auth }
+    - type: redis
+      metadata: { address: redis.researchdesk.svc.cluster.local:6379, listName: "queue:research:low", listLength: "2" }
+      authenticationRef: { name: redis-auth }

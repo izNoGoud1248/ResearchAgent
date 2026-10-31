@@ -1,0 +1,24 @@
+# Which agent may call which gateway tool. Anything not listed is denied.
+# issuer: who must have signed the agent's token.
+# hours: optional UTC window [start, end), may wrap midnight.
+roles:
+  researcher:
+    issuer: orchestrator
+    # Researchers add every paper they find to the library; the agent researcher can also search it and read full text.
+    tools: [arxiv.search, arxiv.fetch, library.add, library.search, paper.read]
+  writer:
+    issuer: orchestrator
+    tools: [notes.save, notes.read]
+  factChecker:
+    issuer: factChecker
+    # fetch looks up the exact papers a claim cites; when an abstract cannot settle a claim,
+    # paper.read loads the cited paper's full text and library.search finds the passages that bear on it.
+    tools: [arxiv.search, arxiv.fetch, library.add, library.search, paper.read]
+  assistant:
+    issuer: orchestrator
+    # Answers follow-up questions on a report from the full text of the papers it cites.
+    tools: [arxiv.fetch, library.add, library.search, paper.read]
+  evaluator:
+    issuer: orchestrator
+    # The evaluation harness only verifies citations.
+    tools: [arxiv.fetch]

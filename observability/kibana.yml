@@ -1,0 +1,8 @@
+server.host: "0.0.0.0"
+server.shutdownTimeout: "5s"
+elasticsearch.hosts: ["http://elasticsearch:9200"]
+
+# Local learning setup: no telemetry prompt, and no banner about security being off (it only listens on localhost).
+telemetry.optIn: false
+telemetry.banner: false
+xpack.security.showInsecureClusterWarning: false

@@ -1,0 +1,186 @@
+{
+  "passId": "20261030T172836Z-agent",
+  "researcher": "agent",
+  "summary": {
+    "questions": 6,
+    "completedRate": 1.0,
+    "citationExistRate": 1.0,
+    "titleMatchRate": 1.0,
+    "inventedCitations": 0,
+    "supportedRate": 0.9535,
+    "criticScore": 7.1667,
+    "judgeOverall": 4.8333,
+    "usdPerRun": 0.0197,
+    "secondsPerRun": 53.8
+  },
+  "runs": [
+    {
+      "question": "What are the latest approaches to prompt injection defense?",
+      "runId": "e2baf07c42524d8abbdec9744073457d",
+      "traceId": "53f23ae8eab5d856e1a079120adaf66a",
+      "status": "completed",
+      "seconds": 34.4,
+      "usd": 0.0189,
+      "drafts": 1,
+      "criticScore": 8,
+      "claims": 15,
+      "supportedRate": 1.0,
+      "citations": {
+        "citations": 5,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 4,
+        "clarity": 5,
+        "overall": 4.75,
+        "comment": "The brief directly answers the question about the latest approaches to prompt injection defense with specific strategies and citations. It is well-structured and easy to follow. However, while it mentions challenges in defense, it could further elaborate on uncertainties or limitations in the effectiveness of these strategies."
+      }
+    },
+    {
+      "question": "How are LLM agents evaluated on long-horizon, multi-step tool use?",
+      "runId": "b70df58f03a34c3a8f9c1199eb81f9da",
+      "traceId": "72d4cf9cf285c4d6752d7633d108fd29",
+      "status": "completed",
+      "seconds": 54.0,
+      "usd": 0.02056,
+      "drafts": 1,
+      "criticScore": 7,
+      "claims": 13,
+      "supportedRate": 0.923,
+      "citations": {
+        "citations": 9,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 5,
+        "clarity": 4,
+        "overall": 4.75,
+        "comment": "The brief directly answers the question regarding the evaluation of LLM agents on long-horizon, multi-step tool use, providing a comprehensive overview of metrics and frameworks used in the evaluation process. It is well-grounded with citations supporting specific claims. The limitations and uncertainties are acknowledged, particularly in the context of intrinsic stability limits. The structure is"
+      }
+    },
+    {
+      "question": "What methods reduce hallucination in retrieval-augmented generation?",
+      "runId": "ce3c33d913f34091ad931a7e27ea9da4",
+      "traceId": "b32559f7ca7307f06760929ae073aaee",
+      "status": "completed",
+      "seconds": 59.9,
+      "usd": 0.02083,
+      "drafts": 1,
+      "criticScore": 7,
+      "claims": 13,
+      "supportedRate": 0.923,
+      "citations": {
+        "citations": 10,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 5,
+        "clarity": 5,
+        "overall": 5.0,
+        "comment": "The brief directly answers the question about methods to reduce hallucination in retrieval-augmented generation, providing specific frameworks and techniques with appropriate citations. It acknowledges challenges and limitations, ensuring a balanced view. The structure is clear and concise, making it easy to follow."
+      }
+    },
+    {
+      "question": "How does speculative decoding speed up large language model inference?",
+      "runId": "f62f9a28ce584c43b8a5eb9969f0542f",
+      "traceId": "3f0b45fa2596f09b95bbe785fa2bbfcd",
+      "status": "completed",
+      "seconds": 47.9,
+      "usd": 0.01836,
+      "drafts": 1,
+      "criticScore": 7,
+      "claims": 13,
+      "supportedRate": 1.0,
+      "citations": {
+        "citations": 6,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 5,
+        "clarity": 5,
+        "overall": 5.0,
+        "comment": "The brief directly answers the question about how speculative decoding speeds up inference in large language models, providing a clear explanation and relevant citations. It discusses the benefits and challenges of the technique while acknowledging limitations, ensuring a balanced perspective. The structure is logical and easy to follow, making it concise and informative."
+      }
+    },
+    {
+      "question": "What techniques make diffusion models generate images faster?",
+      "runId": "c7cecbc8a0eb46b1a74e71994061af6a",
+      "traceId": "ea89eda466c6ee04c36d1de47f8a3322",
+      "status": "completed",
+      "seconds": 61.6,
+      "usd": 0.01822,
+      "drafts": 1,
+      "criticScore": 7,
+      "claims": 12,
+      "supportedRate": 1.0,
+      "citations": {
+        "citations": 8,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 5,
+        "clarity": 4,
+        "overall": 4.75,
+        "comment": "The brief directly answers the question about techniques for faster image generation in diffusion models, providing specific examples and citations. It effectively discusses the Fixed Point Diffusion Models and architectural optimizations in video diffusion models. The claims are well-supported by citations, and limitations or uncertainties are acknowledged. The structure is mostly clear, but some"
+      }
+    },
+    {
+      "question": "How is differential privacy applied when training large language models?",
+      "runId": "48d2d23cee6940778ade0f99958ce335",
+      "traceId": "ab128cd4ee0eb3ad57a5b8e3de8e4ce9",
+      "status": "completed",
+      "seconds": 65.0,
+      "usd": 0.02151,
+      "drafts": 1,
+      "criticScore": 7,
+      "claims": 16,
+      "supportedRate": 0.875,
+      "citations": {
+        "citations": 7,
+        "existRate": 1.0,
+        "titleMatchRate": 1.0,
+        "missing": [],
+        "invented": [],
+        "titleMismatches": []
+      },
+      "judge": {
+        "answersQuestion": 5,
+        "grounded": 5,
+        "calibrated": 5,
+        "clarity": 4,
+        "overall": 4.75,
+        "comment": "The brief directly answers the question about the application of differential privacy in training large language models, providing a comprehensive overview of techniques and their implications. It is well-grounded with multiple citations supporting specific claims. The limitations and challenges of implementing differential privacy are acknowledged, demonstrating a calibrated approach. The structu"
+      }
+    }
+  ]
+}

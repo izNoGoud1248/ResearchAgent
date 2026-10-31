@@ -1,0 +1,281 @@
+# The six Python services share one image; each runs its own module. Pods run as a non-root user with a read-only
+# root filesystem; /tmp and the log folder are the only writable paths.
+# One List document, so the shared settings (YAML anchors) are defined once and reused below.
+apiVersion: v1
+kind: List
+items:
+  # ---------- MCP tool servers: reachable only from the gateway (see networkPolicies.yaml) ----------
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: search, namespace: researchdesk }
+    spec:
+      selector: { app: search }
+      ports: [{ port: 8101 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: search, namespace: researchdesk }
+    spec:
+      replicas: 1
+      selector: { matchLabels: { app: search } }
+      template:
+        metadata: { labels: { app: search } }
+        spec:
+          securityContext: &podSecurity { runAsNonRoot: true, runAsUser: 10001, seccompProfile: { type: RuntimeDefault } }
+          # Each pod first waits until the data stores it uses accept connections, instead of crashing and
+          # restarting until they do. It waits only for stores its NetworkPolicy lets it reach.
+          initContainers: &waitForRedis
+            - name: wait-for-redis
+              image: researchdesk-app:0.1.0
+              command:
+                - python
+                - -c
+                - |
+                  import socket, time
+                  for host, port in (("redis", 6379),):
+                      while True:
+                          try:
+                              socket.create_connection((host, port), 2).close()
+                              break
+                          except OSError:
+                              print(f"waiting for {host}:{port}")
+                              time.sleep(2)
+              securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+              resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 64Mi } }
+          containers:
+            - name: search
+              image: researchdesk-app:0.1.0
+              args: ["services.mcpSearch"]
+              envFrom: &appEnvironment
+                - configMapRef: { name: researchdesk-config }
+                - secretRef: { name: researchdesk-secrets }
+              ports: [{ containerPort: 8101 }]
+              readinessProbe: { tcpSocket: { port: 8101 }, periodSeconds: 5 }
+              livenessProbe: { tcpSocket: { port: 8101 }, periodSeconds: 15, failureThreshold: 4 }
+              securityContext: &containerSecurity
+                readOnlyRootFilesystem: true
+                allowPrivilegeEscalation: false
+                capabilities: { drop: ["ALL"] }
+              resources: &pythonResources
+                requests: { cpu: 50m, memory: 160Mi }
+                limits: { memory: 512Mi }
+              volumeMounts: &writablePaths
+                - { name: tmp, mountPath: /tmp }
+                - { name: logs, mountPath: /app/logs }
+          volumes: &writableVolumes
+            - { name: tmp, emptyDir: {} }
+            - { name: logs, emptyDir: {} }
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: notes, namespace: researchdesk }
+    spec:
+      selector: { app: notes }
+      ports: [{ port: 8102 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: notes, namespace: researchdesk }
+    spec:
+      replicas: 1
+      selector: { matchLabels: { app: notes } }
+      template:
+        metadata: { labels: { app: notes } }
+        spec:
+          securityContext: *podSecurity
+          initContainers:
+            - name: wait-for-postgres
+              image: researchdesk-app:0.1.0
+              command:
+                - python
+                - -c
+                - |
+                  import socket, time
+                  for host, port in (("postgres", 5432),):
+                      while True:
+                          try:
+                              socket.create_connection((host, port), 2).close()
+                              break
+                          except OSError:
+                              print(f"waiting for {host}:{port}")
+                              time.sleep(2)
+              securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+              resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 64Mi } }
+          containers:
+            - name: notes
+              image: researchdesk-app:0.1.0
+              args: ["services.mcpNotes"]
+              envFrom: *appEnvironment
+              ports: [{ containerPort: 8102 }]
+              readinessProbe: { tcpSocket: { port: 8102 }, periodSeconds: 5 }
+              livenessProbe: { tcpSocket: { port: 8102 }, periodSeconds: 15, failureThreshold: 4 }
+              securityContext: *containerSecurity
+              resources: *pythonResources
+              volumeMounts: *writablePaths
+          volumes: *writableVolumes
+  # ---------- MCP gateway: the only way agents reach tools ----------
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: gateway, namespace: researchdesk }
+    spec:
+      selector: { app: gateway }
+      ports: [{ port: 8100 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: gateway, namespace: researchdesk }
+    spec:
+      replicas: 2
+      selector: { matchLabels: { app: gateway } }
+      template:
+        metadata: { labels: { app: gateway } }
+        spec:
+          securityContext: *podSecurity
+          initContainers: &waitForDataStores
+            - name: wait-for-data-stores
+              image: researchdesk-app:0.1.0
+              command:
+                - python
+                - -c
+                - |
+                  import socket, time
+                  for host, port in (("redis", 6379), ("postgres", 5432)):
+                      while True:
+                          try:
+                              socket.create_connection((host, port), 2).close()
+                              break
+                          except OSError:
+                              print(f"waiting for {host}:{port}")
+                              time.sleep(2)
+              securityContext: { readOnlyRootFilesystem: true, allowPrivilegeEscalation: false, capabilities: { drop: ["ALL"] } }
+              resources: { requests: { cpu: 10m, memory: 32Mi }, limits: { memory: 64Mi } }
+          containers:
+            - name: gateway
+              image: researchdesk-app:0.1.0
+              args: ["services.mcpGateway"]
+              envFrom: *appEnvironment
+              ports: [{ containerPort: 8100 }]
+              readinessProbe: { tcpSocket: { port: 8100 }, periodSeconds: 5 }
+              livenessProbe: { tcpSocket: { port: 8100 }, periodSeconds: 15, failureThreshold: 4 }
+              securityContext: *containerSecurity
+              resources: *pythonResources
+              volumeMounts: *writablePaths
+          volumes: *writableVolumes
+  # ---------- Fact-Checker: separate A2A agent ----------
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: factchecker, namespace: researchdesk }
+    spec:
+      selector: { app: factchecker }
+      ports: [{ port: 8110 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: factchecker, namespace: researchdesk }
+    spec:
+      replicas: 1
+      selector: { matchLabels: { app: factchecker } }
+      template:
+        metadata: { labels: { app: factchecker } }
+        spec:
+          securityContext: *podSecurity
+          initContainers: *waitForRedis
+          containers:
+            - name: factchecker
+              image: researchdesk-app:0.1.0
+              args: ["services.factChecker"]
+              envFrom: *appEnvironment
+              ports: [{ containerPort: 8110 }]
+              readinessProbe: { httpGet: { path: /.well-known/agent-card.json, port: 8110 }, periodSeconds: 5 }
+              livenessProbe: { tcpSocket: { port: 8110 }, periodSeconds: 15, failureThreshold: 4 }
+              securityContext: *containerSecurity
+              resources: *pythonResources
+              volumeMounts: *writablePaths
+          volumes: *writableVolumes
+  # ---------- Orchestrator workers: scaled by KEDA on queue depth (keda.yaml) ----------
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: orchestrator, namespace: researchdesk }
+    spec:
+      replicas: 1
+      selector: { matchLabels: { app: orchestrator } }
+      template:
+        metadata: { labels: { app: orchestrator } }
+        spec:
+          securityContext: *podSecurity
+          initContainers: *waitForDataStores
+          # On SIGTERM the worker takes no new job and finishes the current run; a run takes about a minute.
+          terminationGracePeriodSeconds: 120
+          containers:
+            - name: orchestrator
+              image: researchdesk-app:0.1.0
+              args: ["services.orchestrator"]
+              envFrom: *appEnvironment
+              # No port: liveness is the heartbeat file the worker refreshes every 10s from its event loop.
+              livenessProbe:
+                exec:
+                  command: ["python", "-c", "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/researchdesk-heartbeat') > 60)"]
+                initialDelaySeconds: 30
+                periodSeconds: 20
+              securityContext: *containerSecurity
+              resources:
+                requests: { cpu: 100m, memory: 256Mi }
+                limits: { memory: 768Mi }
+              volumeMounts: *writablePaths
+          volumes: *writableVolumes
+  # ---------- API: reachable only through the web front (nginx) ----------
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: api, namespace: researchdesk }
+    spec:
+      selector: { app: api }
+      ports: [{ port: 8010 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: api, namespace: researchdesk }
+    spec:
+      replicas: 2
+      selector: { matchLabels: { app: api } }
+      template:
+        metadata: { labels: { app: api } }
+        spec:
+          securityContext: *podSecurity
+          initContainers: *waitForDataStores
+          terminationGracePeriodSeconds: 30
+          containers:
+            - name: api
+              image: researchdesk-app:0.1.0
+              args: ["services.api"]
+              envFrom: *appEnvironment
+              ports: [{ containerPort: 8010 }]
+              readinessProbe: { httpGet: { path: /health, port: 8010 }, periodSeconds: 5 }
+              livenessProbe: { httpGet: { path: /health, port: 8010 }, periodSeconds: 15, failureThreshold: 4 }
+              # Give the Service time to stop routing here before the server starts shutting down.
+              lifecycle: { preStop: { exec: { command: ["sleep", "5"] } } }
+              securityContext: *containerSecurity
+              resources: *pythonResources
+              volumeMounts: *writablePaths
+          volumes: *writableVolumes
+  # ---------- Web front: nginx serving the UI and forwarding /api ----------
+  - apiVersion: v1
+    kind: Service
+    metadata: { name: web, namespace: researchdesk }
+    spec:
+      type: NodePort
+      selector: { app: web }
+      ports: [{ port: 80, nodePort: 30090 }]
+  - apiVersion: apps/v1
+    kind: Deployment
+    metadata: { name: web, namespace: researchdesk }
+    spec:
+      replicas: 2
+      selector: { matchLabels: { app: web } }
+      template:
+        metadata: { labels: { app: web } }
+        spec:
+          containers:
+            - name: web
+              image: researchdesk-web:0.1.0
+              ports: [{ containerPort: 80 }]
+              readinessProbe: { httpGet: { path: /, port: 80 }, periodSeconds: 5 }
+              livenessProbe: { httpGet: { path: /, port: 80 }, periodSeconds: 15 }
+              lifecycle: { preStop: { exec: { command: ["sleep", "5"] } } }
+              securityContext: { allowPrivilegeEscalation: false }
+              resources:
+                requests: { cpu: 20m, memory: 32Mi }
+                limits: { memory: 128Mi }

@@ -1,0 +1,80 @@
+# Deny all incoming traffic, then allow only the paths the design needs. The one that matters most:
+# search and notes accept connections from the gateway alone, so no agent can skip its checks and audit.
+# Outgoing traffic (OpenAI, arXiv) is not restricted here.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: deny-all-ingress, namespace: researchdesk }
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: web-from-anywhere, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: web } }
+  ingress:
+    - ports: [{ port: 80 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: api-from-web, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: api } }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: web } } }]
+      ports: [{ port: 8010 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: gateway-from-agents, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: gateway } }
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: orchestrator } }
+        - podSelector: { matchLabels: { app: factchecker } }
+      ports: [{ port: 8100 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: tools-from-gateway-only, namespace: researchdesk }
+spec:
+  podSelector:
+    matchExpressions: [{ key: app, operator: In, values: [search, notes] }]
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: gateway } } }]
+      ports: [{ port: 8101 }, { port: 8102 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: factchecker-from-orchestrator, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: factchecker } }
+  ingress:
+    - from: [{ podSelector: { matchLabels: { app: orchestrator } } }]
+      ports: [{ port: 8110 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: redis-from-clients, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: redis } }
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions: [{ key: app, operator: In, values: [api, orchestrator, gateway, search, factchecker] }]
+        # KEDA reads queue length to decide how many workers to run.
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: keda } }
+      ports: [{ port: 6379 }]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: { name: postgres-from-clients, namespace: researchdesk }
+spec:
+  podSelector: { matchLabels: { app: postgres } }
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions: [{ key: app, operator: In, values: [api, orchestrator, gateway, notes] }]
+      ports: [{ port: 5432 }]

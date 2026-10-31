@@ -1,0 +1,16 @@
+# Tails the JSON log files the services write to ./logs and ships them to Logstash.
+filebeat.inputs:
+  - type: filestream
+    id: researchdesk
+    paths:
+      - /logs/*.log
+    prospector.scanner.check_interval: 2s
+    parsers:
+      - ndjson:
+          target: app
+          add_error_key: true
+
+output.logstash:
+  hosts: ["logstash:5044"]
+
+logging.level: warning

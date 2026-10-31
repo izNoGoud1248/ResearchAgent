@@ -1,0 +1,17 @@
+# One-node local cluster. kind's default network plugin ignores NetworkPolicy, so it is turned off and Calico
+# (installed by clusterSetup.py) takes over and enforces the policies.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: researchdesk
+networking:
+  disableDefaultCNI: true
+  # Not Calico's usual 192.168.0.0/16: that range contains Docker Desktop's host address (192.168.65.254),
+  # so pods could not reach host.docker.internal, where the OpenTelemetry collector listens.
+  podSubnet: 10.244.0.0/16
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      # The UI and, under /api, the API: http://localhost:8090
+      - containerPort: 30090
+        hostPort: 8090
+        protocol: TCP

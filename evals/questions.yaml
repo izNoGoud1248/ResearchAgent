@@ -1,0 +1,8 @@
+# The fixed evaluation set. Change it rarely: comparisons are only meaningful on the same questions.
+questions:
+  - What are the latest approaches to prompt injection defense?
+  - How are LLM agents evaluated on long-horizon, multi-step tool use?
+  - What methods reduce hallucination in retrieval-augmented generation?
+  - How does speculative decoding speed up large language model inference?
+  - What techniques make diffusion models generate images faster?
+  - How is differential privacy applied when training large language models?
