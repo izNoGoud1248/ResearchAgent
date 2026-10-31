@@ -12,11 +12,11 @@ from libs.telemetry.tracer import Tracer
 testDatabase = 15
 
 
-def pytest_asyncio_loop_factories(config, item):
-    # psycopg's async mode cannot run on the Windows proactor loop.
-    if sys.platform == "win32":
+if sys.platform == "win32":
+
+    def pytest_asyncio_loop_factories(config, item):
+        # psycopg's async mode cannot run on the Windows proactor loop; other platforms keep the default.
         return {"selector": asyncio.SelectorEventLoop}
-    return None
 
 
 @pytest.fixture(scope="session")
