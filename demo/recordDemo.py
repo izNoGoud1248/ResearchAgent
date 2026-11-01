@@ -98,10 +98,9 @@ class DemoRecorder:
         "Save note": "Approved: the report is saved through the MCP notes tool",
     }
 
-    # A question the LLM cache has not seen, so every agent visibly does its work on camera. "EGALE" is a
-    # deliberate typo for EAGLE, so the Clarifier has something to ask about.
-    question = "Which speculative decoding method gives the bigger speed-up, Medusa or EGALE, and can I use them today?"
-    clarification = "EAGLE, the speculative decoding method. EGALE was a typo."
+    # "YaRN" is an unfamiliar method name, so the Clarifier has something to ask; the papers are easy to find and figure-rich.
+    question = "Which works better for extending LLM context length: YaRN, LongRoPE or position interpolation?"
+    clarification = "YaRN is the RoPE context-extension method, Yet another RoPE extensioN."
 
     def __init__(self, settings: Settings, speed: float = 1.5):
         self.settings = settings
@@ -153,7 +152,7 @@ class DemoRecorder:
         page.locator("input[type=password]").fill(self.apiKey)
         page.get_by_role("button", name="Continue").click()
         page.wait_for_selector("textarea")
-        overlay.caption("STEP 2", "Ask a research question, typo included")
+        overlay.caption("STEP 2", "Ask a research question with an unfamiliar method name")
         page.wait_for_timeout(1200)
         page.locator("textarea").press_sequentially(self.question, delay=30)
         page.wait_for_timeout(500)
@@ -177,7 +176,7 @@ class DemoRecorder:
         page.wait_for_timeout(5000)
         self.followAgents(page, overlay, until="Needs approval", step="STEP 4")
 
-        overlay.caption("STEP 5", "A comparison report: verdict first, then a cited comparison table")
+        overlay.caption("STEP 5", "The planner picked a report style: verdict first, then a cited comparison table")
         self.scrollTo(page, ".reportCard")
         page.wait_for_timeout(4500)
         if page.locator(".reportFigure").count() > 0:
@@ -199,16 +198,16 @@ class DemoRecorder:
 
         self.openQuietly(page, appUrl + "#/knowledge", "Knowledge graph")
         overlay.caption("STEP 7", "Every report, cited paper and topic as one knowledge graph")
-        page.wait_for_timeout(7000)
+        page.wait_for_timeout(6000)
         overlay.caption("STEP 7", "Research areas are found automatically and coloured")
         page.locator(".clusterChip").first.click()
-        page.wait_for_timeout(4000)
+        page.wait_for_timeout(3500)
         page.locator(".closeButton").click()
 
         overlay.caption("STEP 8", "The same graph in 3D")
         page.get_by_role("button", name="3D").click()
         page.wait_for_selector(".knowledgeSpace canvas", timeout=60000)
-        page.wait_for_timeout(7000)
+        page.wait_for_timeout(6000)
         box = page.locator(".knowledgeSpace").bounding_box()
         if box:
             # A slow drag rotates the camera around the graph.
@@ -217,21 +216,34 @@ class DemoRecorder:
             page.mouse.down()
             page.mouse.move(centreX + 250, centreY - 60, steps=90)
             page.mouse.up()
-        page.wait_for_timeout(2500)
+        page.wait_for_timeout(2000)
 
-        self.openQuietly(page, jaegerUrl, "Service & Operation")
-        overlay.caption("STEP 9", "One OpenTelemetry trace across API, queue, agents, MCP, A2A and every LLM call")
-        page.wait_for_timeout(4000)
-        page.mouse.wheel(0, 700)
+        self.openQuietly(page, appUrl + "#/history", "History")
+        overlay.caption("STEP 9", "History: every run with its status, time and cost")
         page.wait_for_timeout(3000)
 
-        for route, heading, step, text in (
-            ("#/ops", "Operations", "STEP 10", "Ops: live workers, queue backpressure, circuit breakers, cache hit rates"),
-            ("#/security", "Security", "STEP 11", "Security: every tool call the gateway allowed, denied or redacted"),
-        ):
-            self.openQuietly(page, appUrl + route, heading)
-            overlay.caption(step, text)
-            page.wait_for_timeout(3500)
+        self.openQuietly(page, appUrl + "#/ops", "Operations")
+        overlay.caption("STEP 10", "Ops: live workers, queue, circuit breakers and cache hit rates")
+        page.wait_for_timeout(2500)
+        self.scrollTo(page, ".chartGrid")
+        overlay.caption("STEP 10", "Seven-day trends: runs by outcome, spend, latency per tool")
+        page.wait_for_timeout(4000)
+        dashboard = page.get_by_role("link", name="Operations dashboard").get_attribute("href")
+        self.openQuietly(page, dashboard, "ResearchDesk: operations and cost")
+        overlay.caption("STEP 11", "One click to the full Kibana dashboard, built from the structured logs")
+        page.wait_for_timeout(6000)
+
+        self.openQuietly(page, appUrl + "#/security", "Security")
+        overlay.caption("STEP 12", "Security: gateway decisions, denial reasons and PII redactions")
+        page.wait_for_timeout(4000)
+        dashboard = page.get_by_role("link", name="Security dashboard in Kibana").get_attribute("href")
+        self.openQuietly(page, dashboard, "ResearchDesk: security and audit")
+        overlay.caption("STEP 12", "And the security and audit dashboard in Kibana")
+        page.wait_for_timeout(6000)
+
+        self.openQuietly(page, jaegerUrl, "Service & Operation")
+        overlay.caption("STEP 13", "One OpenTelemetry trace across API, queue, agents, MCP, A2A and every LLM call")
+        page.wait_for_timeout(4000)
 
         overlay.card(
             "Built for production",
