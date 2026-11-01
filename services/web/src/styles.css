@@ -1318,6 +1318,24 @@ button:disabled {
   outline: none;
 }
 
+.graph3dTag {
+  margin-top: -1.6em;
+  color: #f4f6fb;
+  font: 500 12px Inter, system-ui, sans-serif;
+  text-shadow: 0 0 4px #000, 0 0 2px #000;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.graph3dTag.tag-topic {
+  font-weight: 600;
+}
+
+.graph3dTag.tag-report {
+  opacity: 0.8;
+  font-size: 11px;
+}
+
 .graph3dLabel {
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
