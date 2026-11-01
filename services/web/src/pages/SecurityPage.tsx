@@ -68,7 +68,7 @@ export function SecurityPage({ client }: { client: ApiClient }) {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id}>
-                  <td>{Formatter.time(row.at)}</td>
+                  <td className="nowrap">{Formatter.time(row.at)}</td>
                   <td>
                     {row.agent || "unknown"}
                     {row.issuer && row.issuer !== "orchestrator" && <span className="muted"> ({row.issuer})</span>}

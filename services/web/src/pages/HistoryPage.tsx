@@ -21,16 +21,16 @@ export function HistoryPage({ client }: { client: ApiClient }) {
       {runs.length === 0 && <p className="muted">No runs yet.</p>}
       {runs.length > 0 && (
         <div className="tableWrap">
-          <table>
+          <table className="historyTable">
             <thead>
               <tr>
                 <th>Question</th>
                 <th>Status</th>
                 <th>Started</th>
                 <th>Duration</th>
-                <th className="number">Tokens</th>
-                <th className="number">Cost</th>
-                <th>Models</th>
+                <th className="number optionalColumn">Tokens</th>
+                <th className="number optionalColumn">Cost</th>
+                <th className="optionalColumn">Models</th>
               </tr>
             </thead>
             <tbody>
@@ -42,11 +42,15 @@ export function HistoryPage({ client }: { client: ApiClient }) {
                   <td>
                     <StatusBadge status={run.status} />
                   </td>
-                  <td>{Formatter.time(run.created)}</td>
-                  <td>{Formatter.duration(run.created, run.updated)}</td>
-                  <td className="number">{Formatter.tokens(run.cost)}</td>
-                  <td className="number">{Formatter.cost(run.cost)}</td>
-                  <td className="muted">{Formatter.models(run.cost)}</td>
+                  <td className="nowrap" title={Formatter.time(run.created)}>
+                    {Formatter.shortTime(run.created)}
+                  </td>
+                  <td className="nowrap">{Formatter.duration(run.created, run.updated)}</td>
+                  <td className="number optionalColumn">{Formatter.tokens(run.cost)}</td>
+                  <td className="number optionalColumn">{Formatter.cost(run.cost)}</td>
+                  <td className="muted nowrap optionalColumn" title={Formatter.models(run.cost)}>
+                    {Formatter.modelSummary(run.cost)}
+                  </td>
                 </tr>
               ))}
             </tbody>

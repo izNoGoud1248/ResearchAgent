@@ -11,6 +11,7 @@ const breakerLabels: Record<string, string> = {
   openai: "OpenAI",
   "tool:mcpSearch": "arXiv search tool",
   "tool:mcpNotes": "Notes tool",
+  "tool:mcpLibrary": "Paper library tool",
 };
 
 export function OpsPage({ client }: { client: ApiClient }) {

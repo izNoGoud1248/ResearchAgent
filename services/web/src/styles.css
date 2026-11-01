@@ -120,7 +120,7 @@ h1 {
 
 h2 {
   font-size: 1.05rem;
-  margin: 1.75rem 0 0.85rem;
+  margin: 2.25rem 0 0.85rem;
 }
 
 .card h2 {
@@ -976,6 +976,12 @@ button:disabled {
   align-items: start;
 }
 
+/* The activity feed stays in view beside a long report instead of leaving an empty column. */
+.runColumns > .feed {
+  position: sticky;
+  top: 5.5rem;
+}
+
 .feed ol {
   list-style: none;
   margin: 0;
@@ -1348,6 +1354,7 @@ button:disabled {
 
 .chartGrid {
   display: grid;
+  align-items: start;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
   gap: 1rem;
   margin: 1rem 0;
@@ -1464,6 +1471,10 @@ button:disabled {
   text-align: right;
   font-family: var(--fontMono);
   color: var(--muted);
+}
+
+.tableCard {
+  overflow-x: auto;
 }
 
 .tableCard table {
@@ -1630,6 +1641,34 @@ button:disabled {
 }
 
 @media (max-width: 640px) {
+  /* Tokens, cost and models are detail; on a phone the question, status and time matter. */
+  .optionalColumn {
+    display: none;
+  }
+
+  /* On a phone each run is a small card: the question across the width, status, time and duration below. */
+  .historyTable thead {
+    display: none;
+  }
+
+  .historyTable tr {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    align-items: center;
+    gap: 0.45rem 0.75rem;
+    padding: 0.85rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .historyTable td {
+    padding: 0;
+    border: 0;
+  }
+
+  .historyTable td:first-child {
+    grid-column: 1 / -1;
+  }
+
   .knowledgeDetail {
     top: auto;
     height: 55%;
@@ -1893,10 +1932,15 @@ tr:last-child td {
 
 /* Ops */
 
+/* auto-fit stretches a short row of tiles across the width instead of leaving empty slots. */
 .tiles {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 1rem;
+}
+
+.nowrap {
+  white-space: nowrap;
 }
 
 .tile {
@@ -2045,15 +2089,31 @@ tr:last-child td {
     gap: 0.75rem;
   }
 
+  /* One scrollable row of links instead of a header that wraps onto three lines. */
   .nav {
     order: 3;
     width: 100%;
-    justify-content: space-between;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .navLink {
+    white-space: nowrap;
   }
 
   .runColumns,
   .inbox {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .runColumns > .feed {
+    position: static;
+  }
+
+  .tiles {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    gap: 0.75rem;
   }
 
   .runHeader {

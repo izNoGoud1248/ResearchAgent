@@ -400,16 +400,30 @@ export class KnowledgeGraphView {
     context.shadowColor = "rgba(0, 0, 0, 0.9)";
     context.shadowBlur = 4;
     context.fillStyle = "#f4f6fb";
-    for (const node of this.nodes) {
-      if (!this.visible(node) || node.x === undefined || node.y === undefined) continue;
-      const show =
+    const candidates = this.nodes.filter((node) => {
+      if (!this.visible(node) || node.x === undefined || node.y === undefined) return false;
+      return (
         lit?.has(node.id) ||
         (searching && this.matches(node)) ||
-        (!lit && !searching && ((node.type === "topic" && (this.scale > 0.9 || node.links >= 3)) || (node.type === "report" && this.scale > 1.4)));
-      if (!show) continue;
+        (!lit && !searching && ((node.type === "topic" && (this.scale > 0.9 || node.links >= 3)) || (node.type === "report" && this.scale > 1.4)))
+      );
+    });
+    // Most important first: the focused note, then topics and reports by how connected they are.
+    const priority = (node: GraphNode) => (node.id === focus?.id ? 1000 : 0) + (node.type === "topic" ? 100 : 0) + node.links;
+    candidates.sort((first, second) => priority(second) - priority(first));
+    const placed: { left: number; right: number; top: number; bottom: number }[] = [];
+    const lineHeight = 14 / this.scale;
+    for (const node of candidates) {
       const label = node.label.length > 42 ? `${node.label.slice(0, 40)}…` : node.label;
+      const width = context.measureText(label).width;
+      const x = node.x ?? 0;
+      const y = (node.y ?? 0) - node.radius - 7 / this.scale;
+      const box = { left: x - width / 2 - 3 / this.scale, right: x + width / 2 + 3 / this.scale, top: y - lineHeight, bottom: y + 2 / this.scale };
+      // A label that would overlap one already drawn is skipped; hovering or zooming in reveals it.
+      if (placed.some((other) => box.left < other.right && box.right > other.left && box.top < other.bottom && box.bottom > other.top)) continue;
+      placed.push(box);
       context.globalAlpha = node.type === "topic" || lit?.has(node.id) ? 0.95 : 0.7;
-      context.fillText(label, node.x, node.y - node.radius - 7 / this.scale);
+      context.fillText(label, x, y);
     }
     context.shadowBlur = 0;
     context.restore();

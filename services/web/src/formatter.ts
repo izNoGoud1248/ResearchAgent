@@ -21,6 +21,27 @@ export class Formatter {
     return words.charAt(0).toUpperCase() + words.slice(1);
   }
 
+  /** "Nov 1, 10:46" for this year, with the year added for older dates; short enough never to wrap. */
+  static shortTime(iso: string): string {
+    const date = new Date(iso);
+    const sameYear = date.getFullYear() === new Date().getFullYear();
+    return date.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      ...(sameYear ? {} : { year: "numeric" }),
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  /** "3 models · 23 calls"; the full list goes in the cell's tooltip. */
+  static modelSummary(cost: CostTotal): string {
+    const calls = Object.entries(cost).filter(([key]) => key.startsWith("calls:"));
+    if (calls.length === 0) return "none";
+    const total = calls.reduce((sum, [, count]) => sum + Number(count), 0);
+    return `${calls.length} model${calls.length === 1 ? "" : "s"} · ${total} call${total === 1 ? "" : "s"}`;
+  }
+
   static time(iso: string): string {
     return new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
   }
