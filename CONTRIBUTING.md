@@ -16,6 +16,14 @@ docker compose --profile app up -d --build --wait
 
 ## Before opening a pull request
 
+Install the commit checks once; they block secrets, `.env`, large files and broken YAML or JSON before a commit:
+
+```
+uv run pre-commit install
+```
+
+Then run the tests and the strict web build:
+
 ```
 uv run pytest -m "not llm"
 cd services/web && npm run build
